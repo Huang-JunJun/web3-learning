@@ -12,7 +12,7 @@ contract SimpleVault {
   }
 
   function withdraw(uint256 amount) external {
-    require(balances[msg.sender] >= amount, "Insufficient balance");
+    require(balances[msg.sender] >= amount, 'Insufficient balance');
     balances[msg.sender] -= amount;
     payable(msg.sender).transfer(amount);
     emit Withdraw(msg.sender, amount);
@@ -25,5 +25,9 @@ contract SimpleVault {
   // 获取当前合约的总余额
   function vaultBalance() external view returns (uint256) {
     return address(this).balance;
-}
+  }
+
+  function version() external pure returns (string memory) {
+    return '1.0.0';
+  }
 }
