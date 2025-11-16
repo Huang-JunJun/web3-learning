@@ -184,15 +184,16 @@ npx hardhat clean
 - 在 `test/SimpleVault.ts` 中新增针对 `version()` 的单元测试，验证返回值为 `"1.0.0"`。
 - 更直观地理解了：**Solidity 源码 → ABI → TypeChain 类型 → 测试代码调用** 这一整条链路。
 
-  • Solidity 源码无法直接调用，必须先编译生成 ABI
-  • TypeChain 根据 ABI 生成 TypeScript 类型
-  • ethers.js 基于 ABI + 地址生成合约实例
-  • 改合约 → ABI 变 → 必须重新 compile 才能让 TS 同步
-  • as any 会绕过类型检查，工程里禁止使用
-  • EVM 是状态机，所有数据存储在世界状态树
-  • mapping 使用 keccak256 计算 slot，不是数组
-  • ETH 余额存储在账户状态，而不是变量或 mapping
-  • 交易通过去中心化 P2P 网络广播到全网
+
+- Solidity 源码无法直接调用，必须先编译生成 ABI
+- TypeChain 根据 ABI 生成 TypeScript 类型
+- ethers.js 基于 ABI + 地址生成合约实例
+- 改合约 → ABI 变 → 必须重新 compile 才能让 TS 同步
+- as any 会绕过类型检查，工程里禁止使用
+- EVM 是状态机，所有数据存储在世界状态树
+- mapping 使用 keccak256 计算 slot，不是数组
+- ETH 余额存储在账户状态，而不是变量或 mapping
+- 交易通过去中心化 P2P 网络广播到全网
 
 **简单测试命令：**
 
