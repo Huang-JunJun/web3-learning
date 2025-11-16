@@ -184,16 +184,36 @@ npx hardhat clean
 - 在 `test/SimpleVault.ts` 中新增针对 `version()` 的单元测试，验证返回值为 `"1.0.0"`。
 - 更直观地理解了：**Solidity 源码 → ABI → TypeChain 类型 → 测试代码调用** 这一整条链路。
 
-
 - Solidity 源码无法直接调用，必须先编译生成 ABI
 - TypeChain 根据 ABI 生成 TypeScript 类型
 - ethers.js 基于 ABI + 地址生成合约实例
 - 改合约 → ABI 变 → 必须重新 compile 才能让 TS 同步
 - as any 会绕过类型检查，工程里禁止使用
+
 - EVM 是状态机，所有数据存储在世界状态树
 - mapping 使用 keccak256 计算 slot，不是数组
 - ETH 余额存储在账户状态，而不是变量或 mapping
 - 交易通过去中心化 P2P 网络广播到全网
+
+### ✅ Day 3 — 自定义 ERC20 代币 MyToken + 授权模型
+
+- 在 contracts 目录中新增 `MyToken.sol`，实现一个最简版 ERC20 代币，包含：
+  - 基本元信息：`name`、`symbol`、`decimals`、`totalSupply`。
+  - 余额映射：`mapping(address => uint256) public balanceOf;`。
+  - 授权映射：`mapping(address => mapping(address => uint256)) public allowance;`。
+  - 构造函数中一次性铸造初始总量，并分配给部署者地址。
+  - 实现 `transfer`、`approve`、`transferFrom` 三个核心函数，并在转账和授权时触发 `Transfer` 与 `Approval` 事件。
+- 在 test 目录中新增 `MyToken.ts`，使用 Hardhat + TypeScript 为 MyToken 编写单元测试，主要场景包括：
+  - 部署后，`totalSupply` 全部在 owner 地址上。
+  - owner 调用 `transfer` 向 user1 转账后，双方余额更新正确。
+  - user1 在余额不足的情况下调用 `transfer` 会 `revert`，错误信息为 `"Insufficient balance"`。
+  - owner 调用 `approve` 为 user1 授权一定额度后，`allowance(owner, user1)` 值正确。
+  - user1 在授权额度内调用 `transferFrom(owner → user2)`，user2 收到代币、owner 余额减少、授权额度相应减少。
+  - user1 在超出授权额度时调用 `transferFrom` 会 `revert`，错误信息为 `"Insufficient allowance"`。
+- 通过 MyToken 的实现与测试，更清晰地理解：
+  - ETH 转账是修改账户自身的 ETH 余额（协议层的状态）。
+  - ERC20 代币转账是修改合约内部的 `balanceOf` 映射（应用层的账本）。
+  - `allowance` 表示“owner 授权给 spender 的可用额度”，`transferFrom` 用的就是这部分额度。
 
 **简单测试命令：**
 

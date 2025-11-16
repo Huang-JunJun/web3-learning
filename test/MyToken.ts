@@ -10,8 +10,6 @@ describe('MyToken', () => {
     return { owner, user1, user2, token };
   }
 
-  // 下面开始写各种 describe / it
-
   describe('Supply', () => {
     it('部署后总供应量在 owner 地址上', async () => {
       const { token, owner } = await loadFixture(deployMyTokenFixture);
