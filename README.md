@@ -215,6 +215,41 @@ npx hardhat clean
   - ERC20 代币转账是修改合约内部的 `balanceOf` 映射（应用层的账本）。
   - `allowance` 表示“owner 授权给 spender 的可用额度”，`transferFrom` 用的就是这部分额度。
 
+```
+### ✅ Day 4 — SimpleVaultSafe：防重入版本（金库安全升级）
+
+本日目标：理解重入攻击（Reentrancy）风险，并将 SimpleVault 升级为安全版本 SimpleVaultSafe，掌握现代 Solidity 中安全转账与状态更新顺序的最佳实践。
+
+#### 📌 今日完成内容
+
+- 新增合约 `SimpleVaultSafe.sol`，并成功编译：
+  - 使用 `ReentrancyGuard` 防止重入攻击。
+  - 将原来的 `transfer` 替换为更安全、更推荐的 `call`。
+  - 实现正确的防御顺序：**先更新状态 → 再执行转账**。
+  - 使用事件 `Deposit` / `Withdraw` 记录金库操作。
+
+- 新增测试文件 `test/SimpleVaultSafe.ts`，并全部通过，包括：
+  - 存款后 `balanceOf` 正确更新。
+  - 存款 + 取款后余额变为 0。
+  - 超出余额提款时正确 revert（"Insufficient balance"）。
+
+#### 🧠 今日掌握的核心概念
+
+- `msg.sender.call{value: xxx}("")` 是现代 Solidity 推荐的安全 ETH 转账方式。
+- `nonReentrant` 通过锁机制阻止函数在结束前被再次进入。
+- 为什么必须先扣余额再转账，否则会留下重入攻击窗口。
+- `msg.sender` 是调用者地址，由 EVM 自动填入，不需要手动传入。
+
+#### 📁 今日新增文件
+
+- `contracts/SimpleVaultSafe.sol`
+- `test/SimpleVaultSafe.ts`
+
+#### ✔️ 今日总结
+
+通过 Day 4，我已经掌握了重入攻击的核心原理，并写出了一个可用于生产环境的安全金库合约。对 Solidity 安全编码有了进一步理解，也熟悉了 Hardhat 测试的基础工程流程。
+```
+
 **简单测试命令：**
 
 ```bash
