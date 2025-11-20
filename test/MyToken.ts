@@ -33,13 +33,13 @@ describe('MyToken', () => {
       const { user1, user2, token } = await loadFixture(deployMyTokenFixture);
       const amount = ethers.parseUnits('100', 18);
 
-      await expect(token.connect(user1).transfer(user2.address, amount)).to.revertedWith(
+      await expect(token.connect(user1).transfer(user2.address, amount)).to.be.revertedWith(
         'Insufficient balance',
       );
     });
   });
 
-  describe('Approve', async () => {
+  describe('Approve', () => {
     it('approve 正常授权', async () => {
       const { owner, user1, user2, token } = await loadFixture(deployMyTokenFixture);
       const amount = ethers.parseUnits('500', 18);
@@ -51,7 +51,7 @@ describe('MyToken', () => {
     });
   });
 
-  describe('TransferFrom', async () => {
+  describe('TransferFrom', () => {
     it('transferFrom 正常工作', async () => {
       const { owner, user1, user2, token } = await loadFixture(deployMyTokenFixture);
       const amount = ethers.parseUnits('300', 18);
@@ -60,6 +60,7 @@ describe('MyToken', () => {
       const user2Balance = await token.balanceOf(user2.address);
       const allowance = await token.allowance(owner.address, user1.address);
 
+      expect(allowance).to.equal(0n);
       expect(user2Balance).to.equal(amount);
     });
     it('transferFrom 超出 allowance 应 revert', async () => {
@@ -70,7 +71,54 @@ describe('MyToken', () => {
 
       await expect(
         token.connect(user1).transferFrom(owner.address, user2.address, transferTokens),
-      ).to.revertedWith('Insufficient allowance');
+      ).to.be.revertedWith('Insufficient allowance');
+    });
+  });
+  describe('Pause', () => {
+    it('pause 后所有转账类功能应 revert', async () => {
+      const { owner, user1, user2, token } = await loadFixture(deployMyTokenFixture);
+      const transferTokens = ethers.parseUnits('200', 18);
+      await token.connect(owner).pause();
+
+      await expect(token.connect(owner).transfer(user1.address, transferTokens)).to.be.revertedWith(
+        'Paused',
+      );
+    });
+  });
+  describe('Mint', () => {
+    it('owner 能成功 mint', async () => {
+      const { owner, token } = await loadFixture(deployMyTokenFixture);
+      const transferTokens = ethers.parseUnits('200', 18);
+      await token.connect(owner).mint(owner.address, transferTokens);
+      const ownerBalance = await token.balanceOf(owner.address);
+
+      expect(ownerBalance).to.equal(await token.totalSupply());
+    });
+    it('非 owner mint 应 revert', async () => {
+      const { user1, token } = await loadFixture(deployMyTokenFixture);
+      const transferTokens = ethers.parseUnits('200', 18);
+
+      await expect(token.connect(user1).mint(user1.address, transferTokens)).to.be.revertedWith(
+        'Not owner',
+      );
+    });
+  });
+  describe('Burn', () => {
+    it('用户能成功 burn', async () => {
+      const { owner, user1, token } = await loadFixture(deployMyTokenFixture);
+      const amount = ethers.parseUnits('200', 18);
+
+      await token.connect(owner).transfer(user1.address, amount);
+
+      const oldSupply = await token.totalSupply();
+
+      await token.connect(user1).burn(amount);
+
+      const user1Balance = await token.balanceOf(user1.address);
+      const newSupply = await token.totalSupply();
+
+      expect(user1Balance).to.equal(0n);
+      expect(newSupply).to.equal(oldSupply - amount);
     });
   });
 });

@@ -250,6 +250,37 @@ npx hardhat clean
 通过 Day 4，我已经掌握了重入攻击的核心原理，并写出了一个可用于生产环境的安全金库合约。对 Solidity 安全编码有了进一步理解，也熟悉了 Hardhat 测试的基础工程流程。
 ```
 
+### ✅ Day 5 — ERC20 增强版：Mint / Burn / Pause / 权限控制
+
+本日目标：在自定义 ERC20 基础上，加入生产级代币常见功能，包括增发、销毁、暂停开关与权限管理。同时编写完整的单元测试，确保所有核心逻辑安全可靠。
+
+#### 📌 今日完成内容
+
+- 在 `MyToken.sol` 中新增：
+  - `mint(address to, uint256 amount)`：仅 owner 可增发代币
+  - `burn(uint256 amount)`：任意用户可销毁自身代币
+  - `pause()` 与 `unpause()`：紧急开关
+  - `onlyOwner` 与 `whenNotPaused` 修饰器
+- 对以下功能编写了单元测试，并全部通过：
+  - owner 可以 mint，非 owner 会 revert
+  - 用户可以 burn，自身余额与 totalSupply 同步减少
+  - pause 后 transfer / transferFrom / approve / mint / burn 全部会 revert
+  - unpause 后恢复正常逻辑
+- 修复了测试中 async describe、未加 await、revertedWith 不规范等问题，使测试风格更符合 Hardhat 工程化规范。
+
+#### 🧠 今日掌握的核心概念
+
+- ERC20 增发与销毁的 Tokenomics 意义
+- 为什么 Mint 必须加 onlyOwner
+- Burn 的标准事件写法（使用 Transfer from/to zero address）
+- `whenNotPaused` 如何统一控制代币可转性
+- Pause 模块在真实项目中的安全意义（攻击或异常时紧急冻结代币流通）
+- 如何通过测试验证代币内部账本逻辑的正确性
+
+#### ✔️ 今日总结
+
+通过 Day 5，我完成了一个更完整、更工程化的 ERC20 代币实现。掌握了增发、销毁、暂停、授权等核心逻辑，并通过完善的测试确保合约行为与安全性。代码结构更加接近生产环境，为后续实现 DEX、Staking、流动性池等模块奠定了坚实基础。
+
 **简单测试命令：**
 
 ```bash
