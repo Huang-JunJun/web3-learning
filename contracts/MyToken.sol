@@ -8,6 +8,7 @@ contract MyToken {
   uint256 public totalSupply;
   // owner永不改变
   address public immutable owner;
+  string constant ERR_PAUSED = 'Paused';
   bool public paused;
 
   mapping(address => uint256) public balanceOf;

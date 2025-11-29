@@ -289,6 +289,47 @@ npx hardhat test
 
 ---
 
+### ✅ Day 6 — Ownable 权限模块 + MyTokenV2 全面升级
+
+**今日目标：**
+
+- 实现一个可复用的 Ownable 权限控制模块
+- 将 MyToken 升级为 MyTokenV2，继承 Ownable 并加强代币逻辑
+- 完成覆盖所有核心逻辑的单元测试
+
+**今日完成内容：**
+
+- 新增 `Ownable.sol`
+  - private `_owner` 存储当前 owner
+  - `onlyOwner` 修饰器限制敏感操作
+  - `transferOwnership(address newOwner)` 允许 owner 变更控制权
+  - 拒绝 zero address 作为新 owner
+  - 部署时自动把部署者设为 owner
+
+- 新增代币升级版 `MyTokenV2.sol`
+  - 继承 `Ownable`
+  - 全部敏感操作（mint / pause / unpause / transferOwnership）均受 onlyOwner 限制
+  - 修复并强化 transfer / transferFrom / burn 的安全性检查
+  - 保持与 ERC20 事件规范一致
+
+- 单元测试 `MyTokenV2.ts` 全部通过，包括：
+  - owner 正确初始化
+  - transfer / transferFrom 正常更新余额与 allowance
+  - burn 正确减少 totalSupply，且仅限用户自身余额
+  - transferOwnership 正常切换 owner，并拒绝 zero address
+  - 非 owner 调用敏感操作时正确 revert
+
+**今日掌握的核心概念：**
+
+- 为什么所有协议都需要 Ownable（协议控制权）
+- owner → 新 owner 权限切换的安全性设计
+- ERC20 在工程环境中的可扩展结构
+- 多文件、多模块 Solidity 工程化结构搭建
+- 测试中应避免 async describe、遗漏 await 等常见陷阱
+
+**今日总结：**
+通过 Day 6，我完成了可复用的权限模块 Ownable，并构建了一个更贴近生产环境的 MyTokenV2。实现了权限管理、代币完整生命周期（mint / burn / transfer）、授权、以及安全性检查。单元测试完整覆盖所有关键路径，为后续引入 DEX、Staking、Liquidity Pool 建设奠定了基础。
+
 ## 📄 License
 
 本仓库采用 MIT License 开源。
