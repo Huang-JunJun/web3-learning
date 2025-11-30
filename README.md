@@ -49,7 +49,8 @@ web3-learning/
 │   ├── MyToken.sol            # Day 3: 自定义 ERC20 代币
 │   ├── Ownable.sol            # Day 6: 通用权限控制模块
 │   ├── MyTokenV2.sol          # Day 6: 继承 Ownable 的增强版 ERC20
-│   └── BankPool.sol           # Day 6: ETH 资金池 + shares 份额模型
+│   ├── BankPool.sol           # Day 6: ETH 资金池 + shares 份额模型
+│   └── TokenBankPool.sol      # Day 7: ERC20 资金池 + shares 份额模型
 │
 ├── test/                      # Hardhat + TypeScript 测试
 │   ├── SimpleVault.ts         # SimpleVault 单元测试
@@ -57,7 +58,8 @@ web3-learning/
 │   ├── MyToken.ts             # MyToken 单元测试
 │   ├── Ownable.ts             # Ownable 单元测试
 │   ├── MyTokenV2.ts           # MyTokenV2 单元测试
-│   └── BankPool.ts            # BankPool 单元测试
+│   ├── BankPool.ts            # BankPool 单元测试
+│   └── TokenBankPool.ts       # TokenBankPool 单元测试
 │
 ├── scripts/                   #（预留）部署 / 操作脚本
 │
@@ -354,6 +356,65 @@ npx hardhat clean
 **今日总结：**
 
 通过 Day 6，我完成了可复用的权限模块 Ownable，并构建了一个更贴近生产环境的 MyTokenV2。同时实现了第一个带有 **shares 份额模型** 的资金池 BankPool，理解了共享池子中“总资产 / 总份额 / 用户份额”三者之间的数学关系。现在已经具备搭建简单 DeFi 协议（如 Vault、储蓄池、质押池）的基础能力，为后续引入 DEX、Staking、Liquidity Pool 等模块奠定了扎实的理论与代码基础。
+
+---
+
+### ✅ Day 7 — TokenBankPool：ERC20 版资金池 + shares 复盘
+
+**今日目标：**
+
+- 在 BankPool（ETH 池）的基础上，完成一个支持 ERC20 的资金池合约 TokenBankPool
+- 串联 MyTokenV2（ERC20）、approve/transferFrom 与 shares 模型
+- 通过单元测试验证 ERC20 池的数学正确性与授权流程
+- 进一步巩固 Vault / Pool 的核心设计思路
+
+**今日完成内容：**
+
+- 新增 `TokenBankPool.sol`（ERC20 资金池 + shares 份额模型）
+  - 构造函数接收已有的 `MyTokenV2` 地址，而不是在池子内部 new 代币合约
+  - 使用 `MyTokenV2 public token` 保存池子所管理的 ERC20 代币
+  - 使用 `totalAssets` / `totalShares` 记录池子的整体状态
+  - 使用 `userShares` 记录每个用户在池子中的份额
+  - `deposit(uint256 amount)`：
+    - 调用方先在 `MyTokenV2` 上 `approve(TokenBankPool, amount)`
+    - 池子内部通过 `token.transferFrom(msg.sender, address(this), amount)` 收取代币
+    - 首次存款：按 1:1 铸造 shares（`shares = amount`）
+    - 之后存款：使用 `shares = amount * totalShares / totalAssets` 公式按比例铸造 shares
+    - 更新 `totalAssets`、`totalShares`、`userShares[msg.sender]`
+  - `withdraw(uint256 shares)`：
+    - 校验用户 shares 是否足够
+    - 按 `assets = shares * totalAssets / totalShares` 公式计算可赎回资产数量
+    - 更新 `totalAssets`、`totalShares`、`userShares[msg.sender]`
+    - 通过 `token.transfer(msg.sender, assets)` 将 ERC20 代币返还给用户
+  - `previewWithdraw(address user)`：
+    - 只读函数，根据 `userShares[user]` 与当前 `totalAssets`、`totalShares` 预估用户可赎回资产数量
+    - 对 `totalShares == 0` 的情况做了保护，避免除以 0
+
+- 新增测试文件 `test/TokenBankPool.ts`
+  - 使用 Hardhat fixtures 部署 `MyTokenV2` 与 `TokenBankPool`
+  - 由 owner 先向 user1、user2 分发初始代币，作为存款资金来源
+  - 用例覆盖：
+    - 首次存款：user1 approve → deposit 后，`totalAssets`、`totalShares` 与 `userShares` 1:1 对应
+    - 第二次存款：user2 在池子已有资产与 shares 的情况下存入，shares 按比例计算
+    - 取款：用户 withdraw 部分 shares 后，用户代币余额增加、`totalAssets`、`totalShares`、`userShares` 按数学关系正确更新
+    - 超额赎回：当用户尝试提取超过自身 shares 时，应正确 revert（"Insufficient shares"）
+  - 在测试过程中修复了典型问题：
+    - 忘记对合约调用加 `await`，导致 Chai 收到 Promise 而不是 bigint
+    - `approve` 的 spender 必须是池子合约地址（`pool.getAddress()` 或 `pool.target`），而不是用户自身地址
+    - 使用 `expect(await pool.xxx()).to.equal(...)` 的正确断言方式
+
+**今日掌握的核心概念：**
+
+- ERC20 池与 ETH 池的差异：资产不再来自 `msg.value`，而是来自代币合约的内部余额
+- `approve + transferFrom` 在 DeFi 协议中的标准使用方式：授权池子合约代表用户转账
+- 为什么资金池本身不负责“发币”，而是接管已有代币的流动与分配
+- shares 模型在 ERC20 场景中的复用：`shares / totalShares` 决定用户在池子中的占比，`totalAssets` 决定池子总规模
+- 当有人绕过 `deposit` 直接向池子地址转账代币时，为什么会导致 `totalAssets` 与真实余额不一致（以及如何在工程中通过改造为 `token.balanceOf(address(this))` 避免此类问题）
+- 测试层面上，如何通过 approve → deposit → withdraw 的完整流程验证池子的资金流闭环
+
+**今日总结：**
+
+通过 Day 7，我在原有 ETH 版本 BankPool 的基础上，成功完成了一个基于 ERC20 的 TokenBankPool。它串联了 MyTokenV2、approve/transferFrom、shares 份额模型以及资金池的整体数学关系，使我对 DeFi 协议中“代币 → 池子 → 份额 → 赎回”的完整链路有了更立体的理解。现在不仅可以写出安全的金库合约和基础 ERC20，还能实现一个具备基础生产可用形态的 ERC20 资金池，这为后续实现更复杂的 Vault、Staking、LP 池等模块打下了扎实基础。
 
 ---
 
