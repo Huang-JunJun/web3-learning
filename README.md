@@ -50,7 +50,10 @@ web3-learning/
 │   ├── Ownable.sol            # Day 6: 通用权限控制模块
 │   ├── MyTokenV2.sol          # Day 6: 继承 Ownable 的增强版 ERC20
 │   ├── BankPool.sol           # Day 6: ETH 资金池 + shares 份额模型
-│   └── TokenBankPool.sol      # Day 7: ERC20 资金池 + shares 份额模型
+│   ├── TokenBankPool.sol      # Day 7: ERC20 资金池 + shares 份额模型
+│   ├── StorageDemo.sol        # Day 8: storage 数据位置实验合约
+│   ├── MemoryDemo.sol         # Day 8: memory 数据位置实验合约
+│   └── CalldataDemo.sol       # Day 8: calldata 数据位置实验合约
 │
 ├── test/                      # Hardhat + TypeScript 测试
 │   ├── SimpleVault.ts         # SimpleVault 单元测试
@@ -59,7 +62,10 @@ web3-learning/
 │   ├── Ownable.ts             # Ownable 单元测试
 │   ├── MyTokenV2.ts           # MyTokenV2 单元测试
 │   ├── BankPool.ts            # BankPool 单元测试
-│   └── TokenBankPool.ts       # TokenBankPool 单元测试
+│   ├── TokenBankPool.ts       # TokenBankPool 单元测试
+│   ├── StorageDemo.ts         # StorageDemo 数据位置测试
+│   ├── MemoryDemo.ts          # MemoryDemo 数据位置测试
+│   └── CalldataDemo.ts        # CalldataDemo 数据位置测试
 │
 ├── scripts/                   #（预留）部署 / 操作脚本
 │
@@ -415,6 +421,72 @@ npx hardhat clean
 **今日总结：**
 
 通过 Day 7，我在原有 ETH 版本 BankPool 的基础上，成功完成了一个基于 ERC20 的 TokenBankPool。它串联了 MyTokenV2、approve/transferFrom、shares 份额模型以及资金池的整体数学关系，使我对 DeFi 协议中“代币 → 池子 → 份额 → 赎回”的完整链路有了更立体的理解。现在不仅可以写出安全的金库合约和基础 ERC20，还能实现一个具备基础生产可用形态的 ERC20 资金池，这为后续实现更复杂的 Vault、Staking、LP 池等模块打下了扎实基础。
+
+### ✅ Day 8 — storage / memory / calldata 数据位置专题
+
+**今日目标：**
+
+- 理解 Solidity 中三种数据位置：`storage`、`memory`、`calldata` 的作用与差异
+- 通过三个独立的小合约 + 单元测试，从实践上验证它们的真实行为
+- 为后续理解状态树、存储布局、复杂数据结构打下基础
+
+**今日完成内容：**
+
+- 新增三个用于实验的数据位置示例合约（当前放在本地实验文件中，未来视情况加入正式 contracts 目录）：
+  - `StorageDemo`：
+    - 定义一个简单的 `User` 结构体（例如只有 `score` 字段）
+    - 在函数中通过 `User storage u = user;` 获取对状态变量的引用
+    - 修改 `u.score` 后，持久化到链上状态
+  - `MemoryDemo`：
+    - 复用 `User` 结构体
+    - 在函数中通过 `User memory u = user;` 拷贝一份数据到内存
+    - 修改 `u.score`，但不会影响链上真实的 `user` 状态
+  - `CalldataDemo`：
+    - 定义 external 函数 `testCalldata(uint256[] calldata arr)`
+    - 不修改 `arr`，而是读取 `arr.length` 等只读信息，并返回结果
+    - 通过测试验证：可以正常传入数组参数并读取长度
+
+- 为三个 Demo 编写对应测试（暂在本地实验文件中），并全部通过：
+  - `StorageDemo` 测试：
+    - 调用修改函数后，读取 `user`，`score` 变为期望值（例如 `100n`）
+    - 验证 `storage` 是对状态变量的“引用”，修改会持久化
+  - `MemoryDemo` 测试：
+    - 调用修改函数后，读取 `user`，`score` 仍保持初始值（例如 `0n`）
+    - 验证 `memory` 是一份“拷贝”，修改不会写回链上状态
+  - `CalldataDemo` 测试：
+    - 调用 `testCalldata([1,2,3])`，返回值为 `3n`
+    - 验证 `calldata` 数组可以被正常读取和遍历，但在合约中不能被修改（尝试修改会在编译期报错）
+
+- 再次运行整个测试集，当前所有合约相关测试（包括 SimpleVault / SimpleVaultSafe / MyToken / MyTokenV2 / Ownable / BankPool / TokenBankPool 以及数据位置 Demo 测试）全部通过，测试数达到 50+ 用例，初步具备工程级测试覆盖意识。
+
+**今日掌握的核心概念：**
+
+- `storage`：
+  - 存储在链上的永久状态，是合约真正的“账本”
+  - 典型用途是状态变量、`mapping`、`struct`、数组等
+  - 写入与修改都消耗较高 gas，但交易结束后数据会持续存在
+  - 使用 `User storage u = user;` 时，`u` 与 `user` 指向同一份存储，修改即修改本体
+- `memory`：
+  - 存在于函数执行期间的临时内存，是一份“拷贝”
+  - 常用于函数内部的中间计算、对数据进行读写但不希望影响链上状态
+  - 使用 `User memory u = user;` 会从 `storage` 拷贝一份到内存，修改 `u` 不会回写
+  - 函数结束后，`memory` 数据被回收
+- `calldata`：
+  - 只读的数据位置，主要用于 `external` 函数的参数（尤其是数组、字符串等引用类型）
+  - 不会拷贝到内存，读取成本更低，gas 更省
+  - 在函数体内可以读取 `arr.length`、遍历元素，但不能对 `arr[i]` 进行赋值，试图修改会在编译阶段报错
+- 三者的对比理解：
+  - `storage` 像“硬盘上的账本文件”，负责长期存储真实状态
+  - `memory` 像“函数内的内存副本”，适合临时计算
+  - `calldata` 像“只读的请求数据视图”，适合作为 external 入参，既安全又省 gas
+- 在测试与工程实践中的意义：
+  - 写测试时，通过修改前后的对比，可以清晰地观察 data location 对状态的影响
+  - 编写 external 函数时，数组和字符串参数优先考虑使用 `calldata`
+  - 操作结构体或数组时，要有意识地区分“在改本体”还是“在改副本”，避免无意中消耗大量 gas 或错误修改状态
+
+**今日总结：**
+
+通过 Day 8 的实验与测试，我对 Solidity 中 `storage` / `memory` / `calldata` 三种数据位置有了更具体、可验证的理解，不再只是停留在概念层面，而是通过合约与测试实际观察到了它们对状态、生命周期与 gas 的影响。这一部分知识是理解 EVM 状态树、存储布局以及编写高效、安全合约的基础，也为后续阅读更复杂 DeFi 协议源码（例如大量使用 struct、数组、mapping 的场景）打下了扎实的思想基础。
 
 ---
 
