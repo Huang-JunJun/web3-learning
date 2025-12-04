@@ -51,6 +51,7 @@ web3-learning/
 │   ├── MyTokenV2.sol          # Day 6: 继承 Ownable 的增强版 ERC20
 │   ├── BankPool.sol           # Day 6: ETH 资金池 + shares 份额模型
 │   ├── TokenBankPool.sol      # Day 7: ERC20 资金池 + shares 份额模型
+│   ├── StakingPool.sol        # Day 9: Staking 质押 + 奖励池
 │   ├── StorageDemo.sol        # Day 8: storage 数据位置实验合约
 │   ├── MemoryDemo.sol         # Day 8: memory 数据位置实验合约
 │   └── CalldataDemo.sol       # Day 8: calldata 数据位置实验合约
@@ -63,6 +64,7 @@ web3-learning/
 │   ├── MyTokenV2.ts           # MyTokenV2 单元测试
 │   ├── BankPool.ts            # BankPool 单元测试
 │   ├── TokenBankPool.ts       # TokenBankPool 单元测试
+│   ├── StakingPool.ts         # StakingPool 单元测试
 │   ├── StorageDemo.ts         # StorageDemo 数据位置测试
 │   ├── MemoryDemo.ts          # MemoryDemo 数据位置测试
 │   └── CalldataDemo.ts        # CalldataDemo 数据位置测试
@@ -486,7 +488,86 @@ npx hardhat clean
 
 **今日总结：**
 
-通过 Day 8 的实验与测试，我对 Solidity 中 `storage` / `memory` / `calldata` 三种数据位置有了更具体、可验证的理解，不再只是停留在概念层面，而是通过合约与测试实际观察到了它们对状态、生命周期与 gas 的影响。这一部分知识是理解 EVM 状态树、存储布局以及编写高效、安全合约的基础，也为后续阅读更复杂 DeFi 协议源码（例如大量使用 struct、数组、mapping 的场景）打下了扎实的思想基础。
+---
+
+### ✅ Day 9 — StakingPool：质押 + 奖励分配合约
+
+**今日目标：**
+
+- 实现一个支持 ERC20 质押与奖励分配的 StakingPool 合约
+- 掌握 DeFi 中常见的「累积奖励因子」模型（`rewardPerToken` / `accRewardPerShare`）
+- 理解 stake / unstake / distribute / harvest 之间的状态流转与数学关系
+- 通过单元测试验证奖励按占比分配且不可重复领取
+
+**今日完成内容：**
+
+- 新增 `StakingPool.sol`：
+  - 使用 `MyTokenV2 public stakingToken` 作为质押与奖励代币
+  - 使用 `totalStaked` 记录池子中质押总量，`balances[user]` 记录每个用户的质押数量
+  - 使用 `rewardPerTokenStored` 作为全局累积奖励因子，按 `rewardAmount * 1e18 / totalStaked` 方式更新
+  - 使用 `userRewardPerTokenPaid[user]` 记录用户上次结算时的 `rewardPerTokenStored`
+  - 使用 `rewards[user]` 累计用户尚未领取的奖励
+  - `stake(uint256 amount)`：
+    - 调用方先在 `MyTokenV2` 上 `approve(StakingPool, amount)`
+    - 合约内部通过 `transferFrom(msg.sender, address(this), amount)` 拉入质押代币
+    - 调用 `_updateReward(msg.sender)` 后更新 `balances` 与 `totalStaked`
+    - 触发 `Staked` 事件
+  - `unstake(uint256 amount)`：
+    - 调用 `_updateReward(msg.sender)`，结算到最新奖励
+    - 校验 `balances[msg.sender] >= amount`，不足时 revert `"Insufficient staked balance"`
+    - 更新 `balances` 与 `totalStaked`，通过 `transfer` 把本金返还给用户
+    - 触发 `Unstaked` 事件
+  - `distribute(uint256 rewardAmount)`（仅 owner 调用）：
+    - 由 owner 先 `approve` 授权，再在合约中通过 `transferFrom(owner, address(this), rewardAmount)` 将奖励代币转入池子
+    - 根据当前 `totalStaked` 更新 `rewardPerTokenStored`，实现「每 1 个 token 累积可领取多少奖励」的状态推进
+    - 触发 `RewardAdded` 事件
+  - `earned(address account)`：
+    - 根据公式
+      `pending = balances[account] * (rewardPerTokenStored - userRewardPerTokenPaid[account]) / 1e18`
+      计算从上次结算到当前的新增奖励，并加上历史未领取的 `rewards[account]`
+  - `harvest()`：
+    - 先 `_updateReward(msg.sender)`，把该用户奖励结算到最新
+    - 读取 `rewards[msg.sender]`，若为 0 则 revert `"No rewards to harvest"`
+    - 将奖励清零并通过 `transfer` 发放给用户
+    - 触发 `RewardPaid` 事件
+  - `_updateReward(address account)`：
+    - 用于在 stake / unstake / harvest / distribute 流程中，统一更新用户奖励状态：
+      - `rewards[account] = earned(account);`
+      - `userRewardPerTokenPaid[account] = rewardPerTokenStored;`
+
+- 新增测试文件 `test/StakingPool.ts`，并全部通过：
+  - `用户可以 stake 并更新余额和 totalStaked`：
+    - owner 给 user1 分发代币
+    - user1 `approve` → `stake`
+    - 断言 `balances[user1]` 与 `totalStaked` 更新正确
+  - `用户可以 unstake 并取回本金`：
+    - 先 stake，再 `unstake` 部分或全部
+    - 检查用户钱包余额、`balances[user1]`、`totalStaked` 同步变化
+  - `distribute 后用户可以按占比领取奖励`：
+    - user1 / user2 按不同比例质押
+    - owner `approve + distribute` 奖励
+    - 两人分别 `harvest`，检查奖励代币到账情况与占比分配是否正确
+  - `多次 harvest 不会重复领取同一份奖励`：
+    - 用户 stake 后，distribute 一次奖励并 harvest
+    - 再次调用 `harvest` 会 revert，错误信息为 `"No rewards to harvest"`
+    - 验证奖励只能被领取一次，不能重复发放
+  - `未质押用户不能 unstake 或领取奖励`：
+    - 对从未质押的用户调用 `unstake`，应当 revert `"Insufficient staked balance"`
+    - 对从未质押或已领完奖励的用户调用 `harvest`，应当 revert `"No rewards to harvest"`
+
+**今日掌握的核心概念：**
+
+- `rewardPerTokenStored` 作为全局累积奖励因子，是 DeFi Staking / Farming 协议中常见的「每份质押份额的历史收益」度量方式
+- `userRewardPerTokenPaid[user]` 记录用户上次结算时的奖励因子，用于计算「这次结算新增的那一段奖励」
+- `earned(account)` 的本质是：
+  `当前应得总奖励 = 历史未领奖励 + 当前余额 × (全局因子变化量)`
+- `_updateReward` 在 stake / unstake / harvest 时必须先调用，以保证在修改用户质押余额前，先把旧奖励结算清楚
+- distribute 不直接逐个更新用户余额，而是通过更新一个全局因子，让奖励分配保持 O(1) 复杂度，适合海量用户的 DeFi 场景
+- 对于「多次 harvest」和「未质押用户」等边界条件，通过 revert 文案精确的单元测试可以有效避免逻辑漏洞
+
+**今日总结：**
+
+通过 Day 9 的 StakingPool 实战，我完成了一个具备工程意义的「质押 + 奖励分配」合约，实现了与真实 DeFi 项目接近的奖励结算模型。现在不仅能写出简单的 Vault / BankPool，还能基于 ERC20 构建支持多用户、按占比分配奖励、可领取且不可重复领取的 Staking 池，为后续理解更复杂的流动性挖矿、收益聚合器、流动性池（LP Token）等模块打下了坚实基础。
 
 ---
 

@@ -67,6 +67,8 @@ contract MyTokenV2 is Ownable {
   }
 
   function _transfer(address from, address to, uint256 amount) internal {
+    require(to != address(0), 'Transfer to zero address');
+    require(from != address(0), 'Transfer from zero address');
     _balances[from] -= amount;
     _balances[to] += amount;
     emit Transfer(from, to, amount);
