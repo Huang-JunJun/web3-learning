@@ -34,4 +34,8 @@ contract SimpleVaultSafe is ReentrancyGuard {
   function vaultBalance() external view returns (uint256) {
     return address(this).balance;
   }
+
+  function version() external pure returns (string memory) {
+    return '1.0.0';
+  }
 }

@@ -20,6 +20,7 @@ const HomePage = () => {
       ) : (
         <button onClick={connectWallet}>连接 MetaMask</button>
       )}
+      <a href="/vault">进入金库页面</a>
     </div>
   );
 };

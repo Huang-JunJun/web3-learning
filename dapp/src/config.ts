@@ -1,1 +1,1 @@
-export const VAULT_ADDRESS = '你的本地部署地址（或测试网地址）';
+export const VAULT_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
