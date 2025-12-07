@@ -1,30 +1,42 @@
-// src/components/WalletInfo.tsx
+// src/components/WalletInfo/WalletInfo.tsx
+import { Descriptions, Button, Space, Tag, Typography } from 'antd';
+
+const { Text } = Typography;
+
 type WalletInfoProps = {
-  address: string;
-  chainId: string;
-  chainNetwork: string;
-  balance: string;
-  onDisconnect: () => void;
+  address: string | null;
+  chainId: string | null;
+  chainNetwork: string | null;
+  balance: string | null;
+  onDisconnect?: () => void;
 };
 
 const WalletInfo = ({ address, chainId, chainNetwork, balance, onDisconnect }: WalletInfoProps) => {
-  return (
-    <div>
-      <p>
-        <strong>钱包地址：</strong> {address}
-      </p>
-      <p>
-        <strong>当前链 ID：</strong> {chainId}
-      </p>
-      <p>
-        <strong>当前网络：</strong> {chainNetwork}
-      </p>
-      <p>
-        <strong>ETH 余额：</strong> {balance} ETH
-      </p>
+  if (!address) {
+    return <Text>钱包未连接</Text>;
+  }
 
-      <button onClick={onDisconnect}>断开连接</button>
-    </div>
+  return (
+    <Space size="middle" style={{ width: '100%' }}>
+      <Descriptions column={1} bordered size="small">
+        <Descriptions.Item label="地址">
+          <Text copyable>{address}</Text>
+        </Descriptions.Item>
+        <Descriptions.Item label="网络">
+          <Space>
+            <Tag color="geekblue">{chainNetwork || '未知网络'}</Tag>
+            <Text type="secondary">Chain ID: {chainId ?? '-'}</Text>
+          </Space>
+        </Descriptions.Item>
+        <Descriptions.Item label="余额">{balance ? `${balance} ETH` : '-'}</Descriptions.Item>
+      </Descriptions>
+
+      {onDisconnect && (
+        <Button danger onClick={onDisconnect}>
+          断开连接
+        </Button>
+      )}
+    </Space>
   );
 };
 

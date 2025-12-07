@@ -1,12 +1,22 @@
-// src/App.tsx
+import { ConfigProvider, theme } from 'antd';
 import { BrowserRouter } from 'react-router-dom';
-import { AppRouter } from './router';
+import AppRouter from './router';
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <AppRouter />
-    </BrowserRouter>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
+        token: {
+          colorPrimary: '#1677ff',
+          borderRadius: 8,
+        },
+      }}
+    >
+      <BrowserRouter>
+        <AppRouter />
+      </BrowserRouter>
+    </ConfigProvider>
   );
 };
 
