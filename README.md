@@ -38,45 +38,65 @@
 
 ## 📂 仓库结构（当前）
 
-> 随着学习推进，会逐渐扩展和细化。
-
 ```bash
 web3-learning/
 │
-├── contracts/                 # Solidity 合约
-│   ├── SimpleVault.sol        # Day 1: ETH 金库示例合约
-│   ├── SimpleVaultSafe.sol    # Day 4: 防重入版本金库
-│   ├── MyToken.sol            # Day 3: 自定义 ERC20 代币
-│   ├── Ownable.sol            # Day 6: 通用权限控制模块
-│   ├── MyTokenV2.sol          # Day 6: 继承 Ownable 的增强版 ERC20
-│   ├── BankPool.sol           # Day 6: ETH 资金池 + shares 份额模型
-│   ├── TokenBankPool.sol      # Day 7: ERC20 资金池 + shares 份额模型
-│   ├── StakingPool.sol        # Day 9: Staking 质押 + 奖励池
-│   ├── StorageDemo.sol        # Day 8: storage 数据位置实验合约
-│   ├── MemoryDemo.sol         # Day 8: memory 数据位置实验合约
-│   └── CalldataDemo.sol       # Day 8: calldata 数据位置实验合约
+├── contracts/
+│   ├── SimpleVault.sol
+│   ├── SimpleVaultSafe.sol
+│   ├── MyToken.sol
+│   ├── Ownable.sol
+│   ├── MyTokenV2.sol
+│   ├── BankPool.sol
+│   ├── TokenBankPool.sol
+│   ├── StakingPool.sol
+│   ├── StorageDemo.sol
+│   ├── MemoryDemo.sol
+│   └── CalldataDemo.sol
 │
-├── test/                      # Hardhat + TypeScript 测试
-│   ├── SimpleVault.ts         # SimpleVault 单元测试
-│   ├── SimpleVaultSafe.ts     # SimpleVaultSafe 单元测试
-│   ├── MyToken.ts             # MyToken 单元测试
-│   ├── Ownable.ts             # Ownable 单元测试
-│   ├── MyTokenV2.ts           # MyTokenV2 单元测试
-│   ├── BankPool.ts            # BankPool 单元测试
-│   ├── TokenBankPool.ts       # TokenBankPool 单元测试
-│   ├── StakingPool.ts         # StakingPool 单元测试
-│   ├── StorageDemo.ts         # StorageDemo 数据位置测试
-│   ├── MemoryDemo.ts          # MemoryDemo 数据位置测试
-│   └── CalldataDemo.ts        # CalldataDemo 数据位置测试
+├── test/
+│   ├── SimpleVault.ts
+│   ├── SimpleVaultSafe.ts
+│   ├── MyToken.ts
+│   ├── Ownable.ts
+│   ├── MyTokenV2.ts
+│   ├── BankPool.ts
+│   ├── TokenBankPool.ts
+│   ├── StakingPool.ts
+│   ├── StorageDemo.ts
+│   ├── MemoryDemo.ts
+│   └── CalldataDemo.ts
 │
-├── scripts/                   #（预留）部署 / 操作脚本
+├── scripts/
+│   └── deploySimpleVaultSafe.ts
 │
-├── hardhat.config.ts          # Hardhat 配置
+├── dapp/
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── layouts/
+│   │   │   └── MainLayout.tsx
+│   │   ├── pages/
+│   │   │   ├── HomePage/
+│   │   │   │   └── index.tsx
+│   │   │   └── VaultPage/
+│   │   │       └── index.tsx
+│   │   ├── hooks/
+│   │   │   ├── useWallet.ts
+│   │   │   └── useSimpleVault.ts
+│   │   ├── components/
+│   │   │   └── WalletInfo/
+│   │   │       └── WalletInfo.tsx
+│   │   ├── router/
+│   │   │   └── index.tsx
+│   │   ├── abis/
+│   │   │   └── SimpleVaultSafe.json
+│   │   └── config.ts
+│   └── ...
+│
+├── hardhat.config.ts
 ├── package.json
-└── README.md                  # 仓库说明 & 学习日志
+└── README.md
 ```
-
-后续会根据每天学习内容，继续扩展新的合约文件与测试文件，例如 NFT、Staking、更多 DeFi 组件等。
 
 ---
 
@@ -568,6 +588,29 @@ npx hardhat clean
 **今日总结：**
 
 通过 Day 9 的 StakingPool 实战，我完成了一个具备工程意义的「质押 + 奖励分配」合约，实现了与真实 DeFi 项目接近的奖励结算模型。现在不仅能写出简单的 Vault / BankPool，还能基于 ERC20 构建支持多用户、按占比分配奖励、可领取且不可重复领取的 Staking 池，为后续理解更复杂的流动性挖矿、收益聚合器、流动性池（LP Token）等模块打下了坚实基础。
+
+---
+
+### ✅ Day 10 — DApp 前端：钱包连接 + 读取 SimpleVaultSafe 金库信息
+
+**今日完成内容：**
+
+- 新增 dapp/ 前端工程（React + Vite + TypeScript）。
+- 采用 Ant Design 作为主要 UI 组件库，构建整体布局与卡片式首页。
+- 实现 MainLayout（全局 Header + 回到主页按钮 + Outlet）。
+- 实现 HomePage（钱包概览 + 模块入口卡片）。
+- 实现 VaultPage（调用 loadVersion 与 loadVaultBalance 读取链上金库信息）。
+- 编写 useWallet.ts（MetaMask 连接、地址、余额、链信息）。
+- 编写 useSimpleVault.ts（与 SimpleVaultSafe 合约的前端读取逻辑）。
+- 解决前端与 Hardhat 本地链交互中的错误：
+  - invalid ENS name（因地址写成 URL）。
+  - 0x 返回（因部署地址未更新或网络不一致）。
+
+**今日掌握概念：**
+
+- 前端调用链需要：正确的合约地址 + ABI + 与链一致的网络。
+- React Router 的多页面结构：Layout + Outlet。
+- 前端与合约的职责分离（Hook 负责链交互，页面负责 UI）。
 
 ---
 
