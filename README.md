@@ -614,6 +614,48 @@ npx hardhat clean
 
 ---
 
+### ✅ Day 11 — DApp 前端：SimpleVaultSafe 存款 / 取款交互
+
+**今日目标：**
+
+- 让 VaultPage 不仅能“读取”金库信息，还能完成真实的链上存款 / 取款操作
+- 在前端完整走通：输入金额 → 发送交易 → 等待确认 → 刷新最新状态
+- 进一步理解交易生命周期与前端状态刷新时机
+
+**今日完成内容：**
+
+- 在 `useSimpleVault.ts` 中补全写操作能力：
+  - 新增 `deposit(amount: string, signer)`，内部使用 `ethers.parseEther(amount)` 和 `contract.deposit({ value })` 发送带 value 的交易。
+  - 新增 `withdraw(amount: string, signer)`，使用 `contract.withdraw(parsedAmount)` 从金库取回 ETH。
+  - 统一在这两个函数中对交易调用 `await tx.wait()`，确保在区块打包完成后再返回给页面逻辑。
+- 在 `VaultPage` 中实现存款 / 取款 UI 与交互流程：
+  - 使用 AntD 的 `Input` + `Button` 组合，分别对应“存入 ETH”“取出 ETH”两块区域。
+  - 为存款、取款分别维护独立的 loading 状态，在交易进行中禁用按钮，避免用户重复点击。
+  - 存款 / 取款成功后，自动调用 `loadVaultBalance()` 刷新金库余额，并清空输入框。
+  - 将错误信息收敛到页面底部的统一错误区域，而不是零散的 `alert`。
+- 完整跑通本地 Hardhat 链 + MetaMask 账户的测试流程：
+  - 使用 `npx hardhat node` 启动本地链，复制控制台输出中的私钥，并在 MetaMask 中通过“导入账户”功能导入 Hardhat 账户，获得 10000 测试 ETH 余额。
+  - 解决存款时 MetaMask 报 "资金不足" 的问题，理解这是因为当前账户没有本地链余额，而不是合约逻辑错误。
+  - 在多次测试中，确认存款后合约余额增加、取款后合约余额减少，前端显示的金库余额与链上状态一致。
+- 调试并修复了前端集成中的典型问题：
+  - 当 ABI 不同步或前端未更新最新 ABI 时，TypeScript 会认为合约类型是 `BaseContract`，从而报错 "Property 'withdraw' does not exist"，通过更新 `SimpleVaultSafe.json` 并为合约添加类型断言解决该问题。
+  - 理解了某些控制台报错来自浏览器扩展注入的 `content_script.js`，与 DApp 业务逻辑无关，可以忽略或在无痕模式下调试。
+
+**今日掌握概念：**
+
+- 交易生命周期：从前端发起交易，到进入内存池（pending），再到被打包进区块、生成收据（receipt），中间存在时间差。
+- 为什么必须在前端 `await tx.wait()` 后再去读取最新链上状态，否则会读到“旧余额”。
+- 本地开发闭环：Hardhat 节点 → 部署脚本输出合约地址 → 更新前端 `config.ts` 中的 `VAULT_ADDRESS` → MetaMask 切到本地网络并导入 Hardhat 账户。
+- 前端与合约交互的职责拆分：
+  - Hook（`useWallet` / `useSimpleVault`）负责封装链上读写逻辑与 signer/provider 管理。
+  - 页面组件（`VaultPage`）只关心 UI 状态与用户交互流程。
+
+**今日总结：**
+
+通过 Day 11，我让 SimpleVaultSafe 对应的前端页面从“只读信息”升级为“可真实操作链上金库”的 DApp 页面。现在已经具备：连接钱包、读取合约信息、执行存款与取款交易、在交易确认后自动刷新最新余额等完整闭环能力。这为后续将 BankPool、TokenBankPool、StakingPool 等合约接入前端、构建一个完整的 Web3 学习控制台打下了良好的基础。
+
+---
+
 ## 📄 License
 
 本仓库采用 MIT License 开源。
