@@ -7,6 +7,7 @@ export const useWallet = () => {
   const [chainId, setChainId] = useState('');
   const [chainNetwork, setChainNetwork] = useState('');
   const [balance, setBalance] = useState('');
+  const [signer, setSigner] = useState<ethers.JsonRpcSigner>();
 
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -27,6 +28,9 @@ export const useWallet = () => {
 
     const bal = await _provider.getBalance(addr);
     setBalance(ethers.formatEther(bal));
+
+    const _signer = await _provider.getSigner();
+    setSigner(_signer);
   };
 
   const disconnectWallet = () => {
@@ -70,6 +74,7 @@ export const useWallet = () => {
     chainId,
     chainNetwork,
     balance,
+    signer,
     connectWallet,
     disconnectWallet,
   };
