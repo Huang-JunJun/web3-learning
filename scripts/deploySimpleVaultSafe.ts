@@ -5,8 +5,6 @@ async function main() {
   const vault = await SimpleVaultSafe.deploy();
 
   await vault.waitForDeployment();
-
-  console.log('SimpleVaultSafe deployed to:', await vault.getAddress());
 }
 
 main().catch((error) => {

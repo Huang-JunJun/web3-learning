@@ -82,9 +82,11 @@ const HomePage = () => {
                 模拟流动性资金池与份额分配逻辑，用于深入理解 DeFi。
               </Paragraph>
             </Space>
-            <Button disabled block>
-              敬请期待
-            </Button>
+            <Link to="/bank">
+              <Button type="primary" block>
+                进入资金池模块
+              </Button>
+            </Link>
           </Card>
         </Col>
       </Row>
@@ -92,9 +94,11 @@ const HomePage = () => {
       <Card hoverable>
         <Title level={4}>学习进度</Title>
         <Paragraph>
-          <Text>当前已完成：钱包连接、SimpleVaultSafe 合约前后端打通。</Text>
+          <Text>
+            当前已完成：钱包连接、SimpleVaultSafe 金库读写，以及 BankPool ETH 资金池前端接入。
+          </Text>
           <br />
-          <Text>下一步：在各自路由页面中实现存款 / 取款 / 质押等交互。</Text>
+          <Text>下一步：接入 StakingPool 质押模块，并持续完善交互体验与错误提示。</Text>
         </Paragraph>
       </Card>
     </Space>

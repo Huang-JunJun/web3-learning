@@ -40,8 +40,14 @@ contract BankPool {
     payable(msg.sender).transfer(assets);
   }
 
-  function previewWithdraw(address user) external view returns (uint256 assets) {
+  function previewWithdraw(address user) external view returns (uint256) {
     uint256 shares = userShares[user];
+    if (shares == 0) {
+      return 0;
+    }
+    if (totalShares == 0) {
+      return 0;
+    }
     return (shares * totalAssets) / totalShares;
   }
 }
