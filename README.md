@@ -72,17 +72,22 @@ web3-learning/
 │
 ├── dapp/
 │   ├── src/
+│   │   ├── common/
+│   │   │   └── utils.ts
 │   │   ├── App.tsx
 │   │   ├── layouts/
 │   │   │   └── MainLayout.tsx
 │   │   ├── pages/
 │   │   │   ├── HomePage/
 │   │   │   │   └── index.tsx
+│   │   │   ├── BankPoolPage/
+│   │   │   │   └── index.tsx
 │   │   │   └── VaultPage/
 │   │   │       └── index.tsx
 │   │   ├── hooks/
 │   │   │   ├── useWallet.ts
-│   │   │   └── useSimpleVault.ts
+│   │   │   ├── useSimpleVault.ts
+│   │   │   ├── useBankPool.ts
 │   │   ├── components/
 │   │   │   └── WalletInfo/
 │   │   │       └── WalletInfo.tsx
@@ -655,6 +660,24 @@ npx hardhat clean
 通过 Day 11，我让 SimpleVaultSafe 对应的前端页面从“只读信息”升级为“可真实操作链上金库”的 DApp 页面。现在已经具备：连接钱包、读取合约信息、执行存款与取款交易、在交易确认后自动刷新最新余额等完整闭环能力。这为后续将 BankPool、TokenBankPool、StakingPool 等合约接入前端、构建一个完整的 Web3 学习控制台打下了良好的基础。
 
 ---
+
+### ✅ Day 12 — BankPool 前端：资金池信息 & 存取款交互
+
+**今日完成内容：**
+
+- 新增 `useBankPool.ts`，封装与 BankPool 合约的交互：读取 totalAssets / totalShares / userShares、previewWithdraw、deposit / withdraw 等。
+- 新增 `BankPoolPage` 页面，使用 Ant Design 的 Card/Form/Button 展示池子总资产、总份额、我的份额、可赎回金额，并支持输入金额进行存入和按份额取回。
+- 在前端增加 `common/utils.ts` 的 `formatAmount` 工具函数，用于对大整数金额做保留 4 位小数的格式化展示。
+- 为 dapp 配置路径别名 `@` 指向 `src`，并在各组件中使用 `@/hooks/...`、`@/common/utils` 等形式简化导入路径。
+
+**今日掌握概念：**
+
+- 再次巩固 BankPool shares 模型在前端的映射：前端只显示计算后的 ETH 金额与份额，不直接暴露 raw bigint。
+- 理解为什么前端在展示金额时需要格式化（toFixed / formatAmount），避免 18 位小数影响可读性。
+- 熟悉 React + AntD 下，将合约读写逻辑收敛到自定义 Hook、中台化 UI 与业务逻辑的分层。
+
+**今日总结：**
+已经完成从 BankPool 智能合约 → Hardhat 测试 → DApp 前端的完整闭环。现在前端可以完整展示资金池的总资产、总份额、我的份额、可赎回金额，并支持 ETH 存入和按份额赎回。后续可以用类似模式接入 TokenBankPool、StakingPool 等模块，进一步完善 DApp 的多池子、多模块集成能力。
 
 ## 📄 License
 
