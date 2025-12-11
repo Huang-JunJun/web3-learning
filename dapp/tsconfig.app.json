@@ -22,7 +22,13 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    "baseUrl": ".", // 新增
+    "paths": {
+      // 新增
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src"]
 }
