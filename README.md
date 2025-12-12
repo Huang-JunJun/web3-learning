@@ -68,33 +68,58 @@ web3-learning/
 │   └── CalldataDemo.ts
 │
 ├── scripts/
-│   └── deploySimpleVaultSafe.ts
+│   ├── deployAll.ts
+│   ├── deployBankPool.ts
+│   ├── deployMyTokenV2.ts
+│   ├── deploySimpleVaultSafe.ts
+│   ├── deployStakingPool.ts
+│   ├── deployUtils.ts
+│   └── updateConfig.ts
+│
+├── deployments/
+│   ├── localhost/
+│   │   ├── BankPool.json
+│   │   ├── MyTokenV2.json
+│   │   ├── SimpleVaultSafe.json
+│   │   └── StakingPool.json
+│   ├── mainnet/
+│   └── sepolia/
 │
 ├── dapp/
 │   ├── src/
+│   │   ├── abis/
+│   │   │   ├── BankPool.json
+│   │   │   ├── MyTokenV2.json
+│   │   │   ├── SimpleVaultSafe.json
+│   │   │   └── StakingPool.json
+│   │   ├── assets/
 │   │   ├── common/
 │   │   │   └── utils.ts
-│   │   ├── App.tsx
+│   │   ├── components/
+│   │   │   └── WalletInfo/
+│   │   │       └── WalletInfo.tsx
+│   │   ├── hooks/
+│   │   │   ├── useWallet.ts
+│   │   │   ├── useSimpleVault.ts
+│   │   │   ├── useBankPool.ts
+│   │   │   └── useStakingPool.ts
 │   │   ├── layouts/
 │   │   │   └── MainLayout.tsx
 │   │   ├── pages/
 │   │   │   ├── HomePage/
 │   │   │   │   └── index.tsx
+│   │   │   ├── VaultPage/
+│   │   │   │   └── index.tsx
 │   │   │   ├── BankPoolPage/
 │   │   │   │   └── index.tsx
-│   │   │   └── VaultPage/
+│   │   │   ├── StakingPoolPage/
+│   │   │   │   └── index.tsx
+│   │   │   └── TokenPage/
 │   │   │       └── index.tsx
-│   │   ├── hooks/
-│   │   │   ├── useWallet.ts
-│   │   │   ├── useSimpleVault.ts
-│   │   │   ├── useBankPool.ts
-│   │   ├── components/
-│   │   │   └── WalletInfo/
-│   │   │       └── WalletInfo.tsx
 │   │   ├── router/
 │   │   │   └── index.tsx
-│   │   ├── abis/
-│   │   │   └── SimpleVaultSafe.json
+│   │   ├── types/
+│   │   ├── App.tsx
 │   │   └── config.ts
 │   └── ...
 │
@@ -135,6 +160,31 @@ npx hardhat test
 
 ```bash
 npx hardhat clean
+```
+
+### 5. 一键部署（本地 localhost）
+
+```bash
+npx hardhat node
+```
+
+另开一个终端执行：
+
+```bash
+npx hardhat run scripts/deployAll.ts --network localhost
+```
+
+说明：
+
+- 部署产物会写入 `deployments/localhost/*.json`
+- 脚本会将最新地址同步到 `dapp/src/config.ts`（供前端直接使用）
+
+### 6. 运行 DApp 前端
+
+```bash
+cd dapp
+npm install
+npm run dev
 ```
 
 ---
@@ -678,6 +728,30 @@ npx hardhat clean
 
 **今日总结：**
 已经完成从 BankPool 智能合约 → Hardhat 测试 → DApp 前端的完整闭环。现在前端可以完整展示资金池的总资产、总份额、我的份额、可赎回金额，并支持 ETH 存入和按份额赎回。后续可以用类似模式接入 TokenBankPool、StakingPool 等模块，进一步完善 DApp 的多池子、多模块集成能力。
+
+---
+
+### ✅ Day 13 — DApp 前端：StakingPool + TokenPage + 部署配置自动化
+
+**今日完成内容：**
+
+- 补全 `dapp/src/hooks/useStakingPool.ts`：支持读取质押信息、读取奖励、stake/unstake/harvest 等交互（前端侧统一遵循 `approve → stake` 的流程）。
+- 新增 `dapp/src/pages/StakingPoolPage`：在页面中展示质押数量、当前 allowance、奖励领取状态，并实现「allowance 不足先授权 / 授权完成自动变为质押」的交互模式。
+- 新增 `dapp/src/pages/TokenPage`：将代币管理拆分为 **Owner 操作区 / 普通用户操作区**，并明确展示三个关键地址：Token 合约地址、当前钱包地址、StakingPool 合约地址，以及 `allowance(钱包 → 质押池)` 的含义。
+- 部署脚本工程化：
+  - 新增 `scripts/deployAll.ts` 支持一键部署 MyTokenV2 / SimpleVaultSafe / BankPool / StakingPool。
+  - 引入 `deployments/<network>/*.json` 作为部署结果落盘，便于前端与多人协作复用。
+  - 通过 `scripts/updateConfig.ts` 将部署后的最新地址自动写入 `dapp/src/config.ts`，避免手动复制地址导致的读写失败。
+
+**今日掌握概念：**
+
+- ERC20 质押必须先由 **钱包地址** 对 **质押池合约地址** 执行 `approve`，否则 `stake` 会触发 `Allowance exceeded`。
+- Token “总供应量”与“当前钱包余额”是两个概念：总供应量属于全网统计，余额归属具体地址（部署者/owner 初始持有）。
+- 前端读链的正确刷新时机：交易必须 `await tx.wait()` 后再刷新余额/奖励，否则容易读到旧状态。
+
+**今日总结：**
+
+DApp 已经形成可复用的模块化结构：Hook 负责链交互、Page 负责 UI 与流程、Router+Layout 负责统一导航。并且通过一键部署 + 自动写入 config，实现了「本地链 → 部署 → 前端联动」的闭环工作流。
 
 ## 📄 License
 
