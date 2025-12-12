@@ -3,6 +3,8 @@ import MainLayout from '../layouts/MainLayout';
 import HomePage from '../pages/HomePage';
 import VaultPage from '../pages/VaultPage';
 import BankPoolPage from '../pages/BankPoolPage';
+import StakingPoolPage from '@/pages/StakingPoolPage';
+import TokenPage from '@/pages/TokenPage';
 
 const AppRouter = () => {
   return (
@@ -11,6 +13,8 @@ const AppRouter = () => {
         <Route index element={<HomePage />} />
         <Route path="vault" element={<VaultPage />} />
         <Route path="bank" element={<BankPoolPage />} />
+        <Route path="/staking" element={<StakingPoolPage />} />
+        <Route path="token" element={<TokenPage />} />
       </Route>
     </Routes>
   );

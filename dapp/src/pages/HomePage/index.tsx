@@ -38,7 +38,25 @@ const HomePage = () => {
       </Card>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={12} lg={6}>
+          <Card hoverable style={moduleCardStyle}>
+            <Space orientation="vertical" size="small">
+              <Title level={4} style={{ marginBottom: 0 }}>
+                代币管理 MyTokenV2
+              </Title>
+              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                铸造测试代币、给指定地址转账，并查看授权额度与合约地址。
+              </Paragraph>
+            </Space>
+            <Link to="/token">
+              <Button type="primary" block>
+                进入代币管理模块
+              </Button>
+            </Link>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} md={12} lg={6}>
           <Card hoverable style={moduleCardStyle}>
             <Space orientation="vertical" size="small">
               <Title level={4} style={{ marginBottom: 0 }}>
@@ -56,7 +74,7 @@ const HomePage = () => {
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={12} lg={6}>
           <Card hoverable style={moduleCardStyle}>
             <Space orientation="vertical" size="small">
               <Title level={4} style={{ marginBottom: 0 }}>
@@ -66,13 +84,15 @@ const HomePage = () => {
                 后续将接入质押收益模块，支持存入、提取与领取奖励。
               </Paragraph>
             </Space>
-            <Button disabled block>
-              敬请期待
-            </Button>
+            <Link to="/staking">
+              <Button type="primary" block>
+                进入质押池模块
+              </Button>
+            </Link>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} md={8}>
+        <Col xs={24} sm={12} md={12} lg={6}>
           <Card hoverable style={moduleCardStyle}>
             <Space orientation="vertical" size="small">
               <Title level={4} style={{ marginBottom: 0 }}>
@@ -95,10 +115,13 @@ const HomePage = () => {
         <Title level={4}>学习进度</Title>
         <Paragraph>
           <Text>
-            当前已完成：钱包连接、SimpleVaultSafe 金库读写，以及 BankPool ETH 资金池前端接入。
+            当前已完成：钱包连接、SimpleVaultSafe 金库读写、BankPool ETH 资金池前端接入、StakingPool
+            质押池基础交互，以及 MyTokenV2 代币管理入口。
           </Text>
           <br />
-          <Text>下一步：接入 StakingPool 质押模块，并持续完善交互体验与错误提示。</Text>
+          <Text>
+            下一步：完善 StakingPool 奖励分发与收益展示，并继续优化整体 UI 与合约交互体验。
+          </Text>
         </Paragraph>
       </Card>
     </Space>
