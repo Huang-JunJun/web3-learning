@@ -94,7 +94,8 @@ web3-learning/
 │   │   │   └── StakingPool.json
 │   │   ├── assets/
 │   │   ├── common/
-│   │   │   └── utils.ts
+│   │   │   ├── utils.ts
+│   │   │   └── humanizeEthersError.ts
 │   │   ├── components/
 │   │   │   └── WalletInfo/
 │   │   │       └── WalletInfo.tsx
@@ -752,6 +753,34 @@ npm run dev
 **今日总结：**
 
 DApp 已经形成可复用的模块化结构：Hook 负责链交互、Page 负责 UI 与流程、Router+Layout 负责统一导航。并且通过一键部署 + 自动写入 config，实现了「本地链 → 部署 → 前端联动」的闭环工作流。
+
+---
+
+### ✅ Day 14 — DApp 交互体验优化 + StakingPool 奖励注入/派发升级
+
+**今日完成内容：**
+
+- DApp 交互体验与一致性优化：
+  - 修复 Vault / BankPool / StakingPool “刷新/读取偶发 loading 闪烁”：通过稳定 Hook 函数引用（`useCallback/useMemo`）+ 请求序号（requestId）避免并发竞态。
+  - 统一链上写交易流程：所有操作都遵循 `await tx.wait()` 后再刷新状态，并统一 loading/disabled，避免重复点击与状态错乱。
+  - 全面移除 `alert` 与页面错误框：成功/失败/校验提示统一改为 AntD `message`。
+- 新增 `dapp/src/common/humanizeEthersError.ts`：
+  - 将常见 ethers 错误（如 `ACTION_REJECTED` / `CALL_EXCEPTION` / `Allowance exceeded` / `No rewards` / `Not owner`）转换为更易懂的中文提示，并修复 provider 报错 reason 截断问题。
+- StakingPool 奖励流程升级：
+  - 合约侧：`StakingPool.distribute()` 改为“先转账注入，再分配记账”，并加入 `_rewardFund` 防止重复派发与超额领取。
+  - 前端侧：新增“注入奖励（仅转账） / 仅派发（使用已注入资金） / 转账并派发（一键两笔交易）”等入口；并补充奖励池 Token 数量与质押池地址展示。
+- 修复 `useWallet` 账户切换状态不同步：监听 `accountsChanged` 时同步更新 `signer`，避免“表格显示有奖励但领取提示没有”的错位问题。
+
+**今日掌握概念：**
+
+- React effect 依赖稳定性、并发请求竞态与正确的 loading 管理方式。
+- 前端读链刷新时机：交易必须 `await tx.wait()` 再刷新，才能读到最终状态。
+- “奖励注入（余额变化）”与“奖励派发（记账变化）”的区别：`balanceOf(pool)` ≠ `earned(user)`。
+- 钱包切换账户时，`address` 与 `signer` 必须保持一致，否则读到的是 A 的状态、写交易却在 B 上执行。
+
+**今日总结：**
+
+通过 Day 14，我把 DApp 的交互流程进一步打磨到更接近真实产品：提示更友好、loading 更一致、刷新更可靠；同时把 StakingPool 的奖励发放从“授权拉取”升级为“注入 + 派发”的更清晰流程，并形成了前后端一体的闭环验证。
 
 ## 📄 License
 
