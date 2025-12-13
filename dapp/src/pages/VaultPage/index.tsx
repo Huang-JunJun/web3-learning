@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Card, Button, Descriptions, Space, Input, Typography, Divider } from 'antd';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Card, Button, Descriptions, Space, Input, Typography, Divider, message } from 'antd';
 import { useWallet } from '../../hooks/useWallet';
 import { useSimpleVault } from '../../hooks/useSimpleVault';
-import { useEffect } from 'react';
+import { humanizeEthersError } from '@/common/humanizeEthersError';
 
 const VaultPage = () => {
   const { provider, address, connectWallet, signer } = useWallet();
@@ -15,45 +15,58 @@ const VaultPage = () => {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [error, setError] = useState('');
+  const txBusy = depositLoading || withdrawLoading;
 
-  const handleLoadInfo = async () => {
+  const infoRequestIdRef = useRef(0);
+
+  const refreshInfo = useCallback(async (): Promise<boolean> => {
+    if (!provider || !address) return false;
+
+    const requestId = ++infoRequestIdRef.current;
     try {
-      setError('');
-      if (!provider || !address) {
-        alert('请先连接钱包');
-        return;
-      }
       setInfoLoading(true);
-      const v = await loadVersion();
-      const b = await loadVaultBalance();
+      const [v, b] = await Promise.all([loadVersion(), loadVaultBalance()]);
+      if (infoRequestIdRef.current !== requestId) return false;
       setVersion(v);
       setBalance(b);
+      return true;
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      if (infoRequestIdRef.current !== requestId) return false;
+      message.error(humanizeEthersError(e));
+      return false;
     } finally {
-      setInfoLoading(false);
+      if (infoRequestIdRef.current === requestId) {
+        setInfoLoading(false);
+      }
     }
+  }, [address, loadVaultBalance, loadVersion, provider]);
+
+  const handleLoadInfo = async () => {
+    if (!provider || !address) {
+      message.warning('请先连接钱包');
+      return;
+    }
+    const ok = await refreshInfo();
+    if (ok) message.success('金库信息已刷新');
   };
 
   const handleDeposit = async () => {
     try {
-      setError('');
       if (!provider || !address || !signer) {
-        alert('请先连接钱包');
+        message.warning('请先连接钱包');
         return;
       }
       if (!depositAmount) {
-        alert('请输入存款金额');
+        message.warning('请输入存款金额');
         return;
       }
       setDepositLoading(true);
       await deposit(depositAmount, signer);
-      const b = await loadVaultBalance();
-      setBalance(b);
+      message.success('存款成功');
+      await refreshInfo();
       setDepositAmount('');
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      message.error(humanizeEthersError(e));
     } finally {
       setDepositLoading(false);
     }
@@ -61,22 +74,21 @@ const VaultPage = () => {
 
   const handleWithdraw = async () => {
     try {
-      setError('');
       if (!provider || !address || !signer) {
-        alert('请先连接钱包');
+        message.warning('请先连接钱包');
         return;
       }
       if (!withdrawAmount) {
-        alert('请输入取款金额');
+        message.warning('请输入取款金额');
         return;
       }
       setWithdrawLoading(true);
       await withdraw(withdrawAmount, signer);
-      const b = await loadVaultBalance();
-      setBalance(b);
+      message.success('取款成功');
+      await refreshInfo();
       setWithdrawAmount('');
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      message.error(humanizeEthersError(e));
     } finally {
       setWithdrawLoading(false);
     }
@@ -86,22 +98,8 @@ const VaultPage = () => {
     if (!provider || !address) {
       return;
     }
-    const run = async () => {
-      try {
-        setError('');
-        setInfoLoading(true);
-        const v = await loadVersion();
-        const b = await loadVaultBalance();
-        setVersion(v);
-        setBalance(b);
-      } catch (e: any) {
-        setError(e?.message ?? String(e));
-      } finally {
-        setInfoLoading(false);
-      }
-    };
-    run();
-  }, [provider, address, loadVersion, loadVaultBalance]);
+    void refreshInfo();
+  }, [address, provider, refreshInfo]);
 
   if (!address) {
     return (
@@ -132,8 +130,8 @@ const VaultPage = () => {
           </Descriptions>
           <Button
             type="default"
-            loading={infoLoading || depositLoading || withdrawLoading}
-            disabled={depositLoading || withdrawLoading}
+            loading={infoLoading}
+            disabled={infoLoading || txBusy}
             onClick={handleLoadInfo}
           >
             读取金库信息
@@ -150,8 +148,14 @@ const VaultPage = () => {
               value={depositAmount}
               onChange={(e) => setDepositAmount(e.target.value)}
               style={{ width: 200 }}
+              disabled={infoLoading || txBusy}
             />
-            <Button type="primary" loading={depositLoading} onClick={handleDeposit}>
+            <Button
+              type="primary"
+              loading={depositLoading}
+              disabled={infoLoading || txBusy}
+              onClick={handleDeposit}
+            >
               存款
             </Button>
           </Space>
@@ -165,14 +169,20 @@ const VaultPage = () => {
               value={withdrawAmount}
               onChange={(e) => setWithdrawAmount(e.target.value)}
               style={{ width: 200 }}
+              disabled={infoLoading || txBusy}
             />
-            <Button danger type="primary" loading={withdrawLoading} onClick={handleWithdraw}>
+            <Button
+              danger
+              type="primary"
+              loading={withdrawLoading}
+              disabled={infoLoading || txBusy}
+              onClick={handleWithdraw}
+            >
               取款
             </Button>
           </Space>
         </Space>
 
-        {error && <Typography.Text type="danger">{error}</Typography.Text>}
       </Space>
     </Card>
   );

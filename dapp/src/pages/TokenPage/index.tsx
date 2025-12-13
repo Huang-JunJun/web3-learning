@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Card, Space, Typography, Descriptions, Input, Button, Alert, Divider } from 'antd';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Card, Space, Typography, Descriptions, Input, Button, Alert, Divider, message } from 'antd';
 import { ethers } from 'ethers';
 import { useWallet } from '@/hooks/useWallet';
 import tokenABI from '@/abis/MyTokenV2.json';
 import { MYTOKENV2_ADDRESS, STAKING_POOL_ADDRESS } from '@/config';
+import { humanizeEthersError } from '@/common/humanizeEthersError';
 
 const TokenPage = () => {
   const { provider, signer, address, connectWallet } = useWallet();
@@ -19,23 +20,25 @@ const TokenPage = () => {
   const [approveAmount, setApproveAmount] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const txBusy = loading;
   const isOwner =
     tokenOwner && address ? tokenOwner.toLowerCase() === address.toLowerCase() : false;
 
-  const getTokenContract = () => {
+  const getTokenContract = useCallback(() => {
     if (!provider) {
       throw new Error('Provider not ready');
     }
     return new ethers.Contract(MYTOKENV2_ADDRESS, tokenABI.abi, provider);
-  };
+  }, [provider]);
 
-  const refreshInfo = async () => {
+  const infoRequestIdRef = useRef(0);
+
+  const refreshInfo = useCallback(async (): Promise<boolean> => {
     if (!provider || !address) {
-      return;
+      return false;
     }
+    const requestId = ++infoRequestIdRef.current;
     try {
-      setError('');
       const token = getTokenContract();
       const decimals = await token.decimals();
 
@@ -46,69 +49,93 @@ const TokenPage = () => {
         token.allowance(address, STAKING_POOL_ADDRESS),
       ]);
 
+      if (infoRequestIdRef.current !== requestId) return false;
       setTokenOwner(owner);
       setTotalSupply(ethers.formatUnits(supply, decimals));
       setBalance(ethers.formatUnits(bal, decimals));
       setAllowance(ethers.formatUnits(alw, decimals));
+      return true;
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      if (infoRequestIdRef.current !== requestId) return false;
+      message.error(humanizeEthersError(e));
+      return false;
+    } finally {
+      // no loading state for refreshInfo yet
     }
-  };
+  }, [address, getTokenContract, provider]);
 
   useEffect(() => {
     if (provider && address) {
-      refreshInfo();
+      void refreshInfo();
     }
-  }, [provider, address]);
+  }, [address, provider, refreshInfo]);
 
   const handleMint = async () => {
-    if (!signer || !mintAmount) {
-      return;
-    }
     try {
       setLoading(true);
-      setError('');
+      if (!signer) {
+        message.warning('请先连接钱包');
+        return;
+      }
+      if (!mintAmount) {
+        message.warning('请输入铸造数量');
+        return;
+      }
       const token = new ethers.Contract(MYTOKENV2_ADDRESS, tokenABI.abi, signer);
       const decimals = await token.decimals();
       const tx = await token.mint(ethers.parseUnits(mintAmount, decimals));
       await tx.wait();
       setMintAmount('');
-      refreshInfo();
+      await refreshInfo();
+      message.success('铸造成功');
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      message.error(humanizeEthersError(e));
     } finally {
       setLoading(false);
     }
   };
 
   const handleTransfer = async () => {
-    if (!signer || !transferTo || !transferAmount) {
-      return;
-    }
     try {
       setLoading(true);
-      setError('');
+      if (!signer) {
+        message.warning('请先连接钱包');
+        return;
+      }
+      if (!transferTo) {
+        message.warning('请输入接收地址');
+        return;
+      }
+      if (!transferAmount) {
+        message.warning('请输入转账数量');
+        return;
+      }
       const token = new ethers.Contract(MYTOKENV2_ADDRESS, tokenABI.abi, signer);
       const decimals = await token.decimals();
       const tx = await token.transfer(transferTo, ethers.parseUnits(transferAmount, decimals));
       await tx.wait();
       setTransferTo('');
       setTransferAmount('');
-      refreshInfo();
+      await refreshInfo();
+      message.success('转账成功');
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      message.error(humanizeEthersError(e));
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async () => {
-    if (!signer || !approveAmount) {
-      return;
-    }
     try {
       setLoading(true);
-      setError('');
+      if (!signer) {
+        message.warning('请先连接钱包');
+        return;
+      }
+      if (!approveAmount) {
+        message.warning('请输入授权数量');
+        return;
+      }
       const token = new ethers.Contract(MYTOKENV2_ADDRESS, tokenABI.abi, signer);
       const decimals = await token.decimals();
       const tx = await token.approve(
@@ -117,18 +144,24 @@ const TokenPage = () => {
       );
       await tx.wait();
       setApproveAmount('');
-      refreshInfo();
+      await refreshInfo();
+      message.success('授权成功');
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      message.error(humanizeEthersError(e));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRefresh = async () => {
+    const ok = await refreshInfo();
+    if (ok) message.success('代币信息已刷新');
+  };
+
   if (!address) {
     return (
       <Card>
-        <Space direction="vertical">
+        <Space orientation="vertical">
           <Typography.Title level={3}>代币管理 MyTokenV2</Typography.Title>
           <Typography.Text>请先连接钱包</Typography.Text>
           <Button type="primary" onClick={connectWallet}>
@@ -141,7 +174,7 @@ const TokenPage = () => {
 
   return (
     <Card>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Typography.Title level={3}>代币管理 MyTokenV2</Typography.Title>
 
         <Descriptions bordered column={1}>
@@ -158,11 +191,13 @@ const TokenPage = () => {
           </Descriptions.Item>
         </Descriptions>
 
-        <Button onClick={refreshInfo}>刷新代币信息</Button>
+        <Button onClick={handleRefresh} disabled={txBusy}>
+          刷新代币信息
+        </Button>
 
         <Alert
           type={isOwner ? 'success' : 'warning'}
-          message={isOwner ? '当前钱包是 Token Owner' : '当前钱包不是 Token Owner'}
+          title={isOwner ? '当前钱包是 Token Owner' : '当前钱包不是 Token Owner'}
           description={
             isOwner
               ? '你可以执行铸造（mint）与对外转账（transfer）。'
@@ -174,8 +209,8 @@ const TokenPage = () => {
         <Divider />
 
         <Card size="small" title="Owner 操作区" style={{ width: '100%' }}>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Space direction="vertical">
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical">
               <Typography.Title level={5}>铸造（mint）</Typography.Title>
               <Space>
                 <Input
@@ -183,15 +218,20 @@ const TokenPage = () => {
                   placeholder="铸造数量"
                   value={mintAmount}
                   onChange={(e) => setMintAmount(e.target.value)}
-                  disabled={!isOwner}
+                  disabled={!isOwner || txBusy}
                 />
-                <Button type="primary" loading={loading} onClick={handleMint} disabled={!isOwner}>
+                <Button
+                  type="primary"
+                  loading={loading}
+                  onClick={handleMint}
+                  disabled={!isOwner || txBusy}
+                >
                   铸造
                 </Button>
               </Space>
             </Space>
 
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <Typography.Title level={5}>转账（transfer）</Typography.Title>
               <Space>
                 <Input
@@ -199,16 +239,16 @@ const TokenPage = () => {
                   placeholder="接收地址"
                   value={transferTo}
                   onChange={(e) => setTransferTo(e.target.value)}
-                  disabled={!isOwner}
+                  disabled={!isOwner || txBusy}
                 />
                 <Input
                   style={{ width: 200 }}
                   placeholder="数量"
                   value={transferAmount}
                   onChange={(e) => setTransferAmount(e.target.value)}
-                  disabled={!isOwner}
+                  disabled={!isOwner || txBusy}
                 />
-                <Button loading={loading} onClick={handleTransfer} disabled={!isOwner}>
+                <Button loading={loading} onClick={handleTransfer} disabled={!isOwner || txBusy}>
                   转账
                 </Button>
               </Space>
@@ -217,8 +257,8 @@ const TokenPage = () => {
         </Card>
 
         <Card size="small" title="普通用户操作区" style={{ width: '100%' }}>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Space direction="vertical">
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical">
               <Typography.Title level={5}>授权给质押池（approve）</Typography.Title>
               <Typography.Text type="secondary">
                 你是在 MyTokenV2 上发起
@@ -230,8 +270,9 @@ const TokenPage = () => {
                   placeholder="授权数量（给质押池可用）"
                   value={approveAmount}
                   onChange={(e) => setApproveAmount(e.target.value)}
+                  disabled={txBusy}
                 />
-                <Button type="primary" loading={loading} onClick={handleApprove}>
+                <Button type="primary" loading={loading} onClick={handleApprove} disabled={txBusy}>
                   授权
                 </Button>
               </Space>
@@ -239,7 +280,6 @@ const TokenPage = () => {
           </Space>
         </Card>
 
-        {error && <Alert type="error" message="操作失败" description={error} />}
       </Space>
     </Card>
   );

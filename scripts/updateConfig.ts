@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const NETWORK = 'localhost'; // 可扩展
+const NETWORK = process.argv[2] || 'localhost';
 const DEPLOY_DIR = path.join(__dirname, '../deployments', NETWORK);
 
 // 映射 deploy 名字 → config.ts 常量名

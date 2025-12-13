@@ -12,6 +12,9 @@ contract StakingPool is Ownable {
   uint256 public totalStaked;
   mapping(address => uint256) public balances;
 
+  // 已入账但尚未发放/领取的奖励资金池（防止重复 distribute）
+  uint256 private _rewardFund;
+
   // 累计奖励因子 截止当前为止，每 1 个质押 token 应得的历史奖励数量是多少？
   uint256 public rewardPerTokenStored;
   // 记录「用户上一次更新奖励时 rewardPerTokenStored 的值」。
@@ -55,8 +58,12 @@ contract StakingPool is Ownable {
     require(rewardAmount > 0, 'Reward must be greater than 0');
     require(totalStaked > 0, 'No staked tokens');
 
-    // 将奖励代币转入合约
-    require(stakingToken.transferFrom(msg.sender, address(this), rewardAmount), 'Transfer failed');
+    // 奖励通过「代币转账」直接打到本合约后再分配：
+    // 需要先执行 MyTokenV2.transfer(StakingPool, rewardAmount)，再调用本方法。
+    uint256 bal = stakingToken.balanceOf(address(this));
+    require(bal >= totalStaked + _rewardFund, 'Bad pool balance');
+    require(bal >= totalStaked + _rewardFund + rewardAmount, 'Insufficient reward balance');
+    _rewardFund += rewardAmount;
 
     // 计算每个质押 token 应得的奖励增加量
     rewardPerTokenStored += (rewardAmount * 1e18) / totalStaked;
@@ -68,7 +75,9 @@ contract StakingPool is Ownable {
     _updateReward(msg.sender);
     uint256 reward = rewards[msg.sender];
     require(reward > 0, 'No rewards to harvest');
+    require(_rewardFund >= reward, 'Insufficient reward fund');
     rewards[msg.sender] = 0;
+    _rewardFund -= reward;
     require(stakingToken.transfer(msg.sender, reward), 'Transfer failed');
     emit RewardPaid(msg.sender, reward);
   }

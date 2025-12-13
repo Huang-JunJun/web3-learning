@@ -1,5 +1,6 @@
 // useSimpleVault.ts
 import { ethers } from 'ethers';
+import { useCallback, useMemo } from 'react';
 import vaultABI from '../abis/SimpleVaultSafe.json';
 import { VAULT_ADDRESS } from '../config';
 
@@ -11,42 +12,45 @@ type SimpleVaultSafeContract = ethers.Contract & {
 };
 
 export const useSimpleVault = (provider: ethers.BrowserProvider | null) => {
-  const getContract = (): SimpleVaultSafeContract => {
-    if (!provider) {
-      throw new Error('Provider not ready');
-    }
+  const contract = useMemo(() => {
+    if (!provider) return null;
     return new ethers.Contract(
       VAULT_ADDRESS,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (vaultABI as any).abi,
       provider,
     ) as SimpleVaultSafeContract;
-  };
+  }, [provider]);
 
-  const loadVersion = async () => {
-    const contract = getContract();
-    return await contract.version();
-  };
+  const getContract = useCallback((): SimpleVaultSafeContract => {
+    if (!contract) {
+      throw new Error('Provider not ready');
+    }
+    return contract;
+  }, [contract]);
 
-  const loadVaultBalance = async () => {
-    const contract = getContract();
-    const bal = await contract.vaultBalance();
+  const loadVersion = useCallback(async () => {
+    return await getContract().version();
+  }, [getContract]);
+
+  const loadVaultBalance = useCallback(async () => {
+    const bal = await getContract().vaultBalance();
     return ethers.formatEther(bal);
-  };
+  }, [getContract]);
 
-  const deposit = async (amount: string, signer: ethers.Signer) => {
+  const deposit = useCallback(async (amount: string, signer: ethers.Signer) => {
     const contract = getContract().connect(signer) as SimpleVaultSafeContract;
     const value = ethers.parseEther(amount);
     const tx = await contract.deposit({ value });
     await tx.wait();
-  };
+  }, [getContract]);
 
-  const withdraw = async (amount: string, signer: ethers.Signer) => {
+  const withdraw = useCallback(async (amount: string, signer: ethers.Signer) => {
     const contract = getContract().connect(signer) as SimpleVaultSafeContract;
     const value = ethers.parseEther(amount);
     const tx = await contract.withdraw(value);
     await tx.wait();
-  };
+  }, [getContract]);
 
   return {
     loadVersion,
