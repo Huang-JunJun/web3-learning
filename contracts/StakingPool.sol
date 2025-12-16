@@ -31,6 +31,10 @@ contract StakingPool is Ownable {
     stakingToken = MyTokenV2(tokenAddress);
   }
 
+  function rewardFund() external view returns (uint256) {
+    return _rewardFund;
+  }
+
   function stake(uint256 amount) external {
     _updateReward(msg.sender);
     require(amount > 0, 'Cannot stake 0');

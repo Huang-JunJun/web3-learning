@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Card, Space, Typography, Descriptions, Input, Button, Divider, message } from 'antd';
+import { Card, Space, Typography, Descriptions, Input, Button, Divider, message, Table } from 'antd';
 import { ethers } from 'ethers';
 import { useWallet } from '@/hooks/useWallet';
 import { useStakingPool } from '@/hooks/useStakingPool';
 import { humanizeEthersError } from '@/common/humanizeEthersError';
 import { STAKING_POOL_ADDRESS } from '@/config';
+import stakingPoolABI from '@/abis/StakingPool.json';
 
 const StakingPoolPage = () => {
   const { provider, address, signer, connectWallet } = useWallet();
@@ -14,6 +15,7 @@ const StakingPoolPage = () => {
     loadTotalStakedRaw,
     loadUserStaked,
     loadUserEarned,
+    loadUserEarnedRaw,
     loadAllowance,
     loadAllowanceRaw,
     approve,
@@ -23,9 +25,11 @@ const StakingPoolPage = () => {
     loadTokenOwner,
     loadPoolOwner,
     loadPoolTokenBalanceRaw,
+    tryLoadRewardFundRaw,
     injectReward,
     rewardTransfer,
     distributeOnly,
+    distributeOnlyRaw,
     distributeReward,
   } = useStakingPool(provider);
 
@@ -38,7 +42,11 @@ const StakingPoolPage = () => {
   const [allowanceRaw, setAllowanceRaw] = useState<bigint>(0n);
   const [poolOwner, setPoolOwner] = useState('');
   const [tokenOwner, setTokenOwner] = useState('');
-  const [rewardPoolBalance, setRewardPoolBalance] = useState('');
+  const [poolTotalTokenBalance, setPoolTotalTokenBalance] = useState('');
+  const [unallocatedRewardBalance, setUnallocatedRewardBalance] = useState('');
+  const [rewardFundBalance, setRewardFundBalance] = useState('');
+  const [unallocatedRewardRaw, setUnallocatedRewardRaw] = useState<bigint>(0n);
+  const [rewardFundSupported, setRewardFundSupported] = useState(false);
 
   const [stakeAmount, setStakeAmount] = useState('');
   const [unstakeAmount, setUnstakeAmount] = useState('');
@@ -56,6 +64,18 @@ const StakingPoolPage = () => {
   const [rewardPayLoading, setRewardPayLoading] = useState(false);
   const [injectLoading, setInjectLoading] = useState(false);
 
+  const [stakersLoading, setStakersLoading] = useState(false);
+  const [stakerRows, setStakerRows] = useState<
+    Array<{
+      key: string;
+      address: string;
+      staked: string;
+      claimable: string;
+      claimed: string;
+      totalRewards: string;
+    }>
+  >([]);
+
   const txBusy =
     approveLoading ||
     stakeLoading ||
@@ -70,6 +90,108 @@ const StakingPoolPage = () => {
     tokenOwner && address ? tokenOwner.toLowerCase() === address.toLowerCase() : false;
 
   const infoRequestIdRef = useRef(0);
+  const stakersRequestIdRef = useRef(0);
+  const warnedRewardFundUnsupportedRef = useRef(false);
+
+  const refreshStakers = useCallback(async (): Promise<boolean> => {
+    if (!provider) return false;
+
+    const requestId = ++stakersRequestIdRef.current;
+    try {
+      setStakersLoading(true);
+
+      const iface = new ethers.Interface(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (stakingPoolABI as any).abi,
+      );
+      const stakedTopic = iface.getEvent('Staked').topicHash;
+      const rewardPaidTopic = iface.getEvent('RewardPaid').topicHash;
+
+      const [stakedLogs, rewardPaidLogs] = await Promise.all([
+        provider.getLogs({
+          address: STAKING_POOL_ADDRESS,
+          fromBlock: 0,
+          toBlock: 'latest',
+          topics: [stakedTopic],
+        }),
+        provider.getLogs({
+          address: STAKING_POOL_ADDRESS,
+          fromBlock: 0,
+          toBlock: 'latest',
+          topics: [rewardPaidTopic],
+        }),
+      ]);
+
+      const addressSet = new Set<string>();
+      for (const log of stakedLogs) {
+        const parsed = iface.parseLog(log);
+        addressSet.add((parsed.args as any).user);
+      }
+
+      const claimedBy = new Map<string, bigint>();
+      for (const log of rewardPaidLogs) {
+        const parsed = iface.parseLog(log);
+        const user = (parsed.args as any).user as string;
+        const reward = BigInt(((parsed.args as any).reward as any).toString());
+        addressSet.add(user);
+        claimedBy.set(user, (claimedBy.get(user) ?? 0n) + reward);
+      }
+
+      const addresses = Array.from(addressSet);
+      const pool = new ethers.Contract(
+        STAKING_POOL_ADDRESS,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (stakingPoolABI as any).abi,
+        provider,
+      );
+
+      const snapshots = await Promise.all(
+        addresses.map(async (addr) => {
+          const [stakedRaw, earnedRaw] = await Promise.all([
+            pool.balances(addr),
+            pool.earned(addr),
+          ]);
+          const stakedBn = BigInt(stakedRaw.toString());
+          const earnedBn = BigInt(earnedRaw.toString());
+          const claimedBn = claimedBy.get(addr) ?? 0n;
+          return { addr, stakedBn, earnedBn, claimedBn };
+        }),
+      );
+
+      const active = snapshots
+        .filter((x) => x.stakedBn > 0n || x.earnedBn > 0n || x.claimedBn > 0n)
+        .sort((a, b) => {
+          if (a.stakedBn === b.stakedBn) return a.addr.localeCompare(b.addr);
+          return a.stakedBn > b.stakedBn ? -1 : 1;
+        });
+
+      if (stakersRequestIdRef.current !== requestId) return false;
+
+      setStakerRows(
+        active.map((x) => {
+          const total = x.claimedBn + x.earnedBn;
+          return {
+            key: x.addr,
+            address: x.addr,
+            staked: ethers.formatUnits(x.stakedBn, tokenDecimals),
+            claimable: ethers.formatUnits(x.earnedBn, tokenDecimals),
+            claimed: ethers.formatUnits(x.claimedBn, tokenDecimals),
+            totalRewards: ethers.formatUnits(total, tokenDecimals),
+          };
+        }),
+      );
+
+      return true;
+    } catch (e: any) {
+      if (stakersRequestIdRef.current !== requestId) return false;
+      message.error(humanizeEthersError(e));
+      return false;
+    } finally {
+      if (stakersRequestIdRef.current === requestId) {
+        setStakersLoading(false);
+      }
+    }
+  }, [provider, tokenDecimals]);
 
   const refreshInfo = useCallback(async (): Promise<boolean> => {
     if (!address) return false;
@@ -84,11 +206,12 @@ const StakingPoolPage = () => {
         loadAllowance(address),
         loadAllowanceRaw(address),
       ]);
-      const [poolO, tokenO, poolBalRaw, totalRaw] = await Promise.all([
+      const [poolO, tokenO, poolBalRaw, totalRaw, rewardFundRawOrNull] = await Promise.all([
         loadPoolOwner(),
         loadTokenOwner(),
         loadPoolTokenBalanceRaw(),
         loadTotalStakedRaw(),
+        tryLoadRewardFundRaw(),
       ]);
       if (infoRequestIdRef.current !== requestId) return false;
       setTotalStaked(total);
@@ -98,8 +221,27 @@ const StakingPoolPage = () => {
       setAllowanceRaw(aRaw);
       setPoolOwner(poolO);
       setTokenOwner(tokenO);
-      const rewardRaw = poolBalRaw > totalRaw ? poolBalRaw - totalRaw : 0n;
-      setRewardPoolBalance(ethers.formatUnits(rewardRaw, tokenDecimals));
+      setPoolTotalTokenBalance(ethers.formatUnits(poolBalRaw, tokenDecimals));
+      if (rewardFundRawOrNull === null) {
+        if (!warnedRewardFundUnsupportedRef.current) {
+          warnedRewardFundUnsupportedRef.current = true;
+          message.warning('当前质押池合约未升级：无法读取 rewardFund（请重新部署并更新前端地址）');
+        }
+        const unallocatedRaw = poolBalRaw > totalRaw ? poolBalRaw - totalRaw : 0n;
+        setUnallocatedRewardBalance(ethers.formatUnits(unallocatedRaw, tokenDecimals));
+        setUnallocatedRewardRaw(unallocatedRaw);
+        setRewardFundSupported(false);
+        setRewardFundBalance('-');
+      } else {
+        const unallocatedRaw =
+          poolBalRaw > totalRaw + rewardFundRawOrNull
+            ? poolBalRaw - totalRaw - rewardFundRawOrNull
+            : 0n;
+        setUnallocatedRewardBalance(ethers.formatUnits(unallocatedRaw, tokenDecimals));
+        setUnallocatedRewardRaw(unallocatedRaw);
+        setRewardFundSupported(true);
+        setRewardFundBalance(ethers.formatUnits(rewardFundRawOrNull, tokenDecimals));
+      }
       return true;
     } catch (e: any) {
       if (infoRequestIdRef.current !== requestId) return false;
@@ -116,6 +258,7 @@ const StakingPoolPage = () => {
     loadAllowanceRaw,
     loadPoolOwner,
     loadPoolTokenBalanceRaw,
+    tryLoadRewardFundRaw,
     loadTokenOwner,
     loadTotalStaked,
     loadTotalStakedRaw,
@@ -124,8 +267,13 @@ const StakingPoolPage = () => {
     tokenDecimals,
   ]);
 
+  const refreshAll = useCallback(async (): Promise<boolean> => {
+    const [infoOk, stakersOk] = await Promise.all([refreshInfo(), refreshStakers()]);
+    return infoOk && stakersOk;
+  }, [refreshInfo, refreshStakers]);
+
   const handleRefresh = async () => {
-    const ok = await refreshInfo();
+    const ok = await refreshAll();
     if (ok) message.success('质押信息已刷新');
   };
 
@@ -148,8 +296,8 @@ const StakingPoolPage = () => {
     if (!provider || !address) {
       return;
     }
-    void refreshInfo();
-  }, [address, provider, refreshInfo]);
+    void refreshAll();
+  }, [address, provider, refreshAll]);
 
   const needApprove = useMemo(() => {
     if (!stakeAmount) {
@@ -176,7 +324,7 @@ const StakingPoolPage = () => {
       setApproveLoading(true);
       await approve(stakeAmount, signer);
       message.success('授权成功');
-      await refreshInfo();
+      await refreshAll();
     } catch (e: any) {
       message.error(humanizeEthersError(e));
     } finally {
@@ -198,7 +346,7 @@ const StakingPoolPage = () => {
       await stake(stakeAmount, signer);
       message.success('质押成功');
       setStakeAmount('');
-      await refreshInfo();
+      await refreshAll();
     } catch (e: any) {
       message.error(humanizeEthersError(e));
     } finally {
@@ -220,7 +368,7 @@ const StakingPoolPage = () => {
       await unstake(unstakeAmount, signer);
       message.success('解除质押成功');
       setUnstakeAmount('');
-      await refreshInfo();
+      await refreshAll();
     } catch (e: any) {
       message.error(humanizeEthersError(e));
     } finally {
@@ -234,10 +382,15 @@ const StakingPoolPage = () => {
         message.warning('请先连接钱包');
         return;
       }
+      const earnedNow = await loadUserEarnedRaw(address);
+      if (earnedNow <= 0n) {
+        message.warning('当前钱包地址没有可领取奖励（请确认你连接的钱包地址）');
+        return;
+      }
       setHarvestLoading(true);
       await harvest(signer);
       message.success('领取奖励成功');
-      await refreshInfo();
+      await refreshAll();
     } catch (e: any) {
       message.error(humanizeEthersError(e));
     } finally {
@@ -263,7 +416,7 @@ const StakingPoolPage = () => {
       await distributeReward(rewardAmount, signer);
       message.success('派发奖励成功');
       setRewardAmount('');
-      await refreshInfo();
+      await refreshAll();
     } catch (e: any) {
       message.error(humanizeEthersError(e));
     } finally {
@@ -289,7 +442,7 @@ const StakingPoolPage = () => {
       await injectReward(injectAmount, signer);
       message.success('奖励已注入质押池');
       setInjectAmount('');
-      await refreshInfo();
+      await refreshAll();
     } catch (e: any) {
       message.error(humanizeEthersError(e));
     } finally {
@@ -315,7 +468,36 @@ const StakingPoolPage = () => {
       await distributeOnly(rewardAmount, signer);
       message.success('派发奖励成功（使用已注入资金）');
       setRewardAmount('');
-      await refreshInfo();
+      await refreshAll();
+    } catch (e: any) {
+      message.error(humanizeEthersError(e));
+    } finally {
+      setDistributeLoading(false);
+    }
+  };
+
+  const handleDistributeAllUnallocated = async () => {
+    try {
+      if (!provider || !address || !signer) {
+        message.warning('请先连接钱包');
+        return;
+      }
+      if (!isPoolOwner) {
+        message.warning('只有池子 Owner 才能派发奖励');
+        return;
+      }
+      if (!rewardFundSupported) {
+        message.warning('当前质押池合约未升级：请重新部署后再使用“派发未分配奖励”');
+        return;
+      }
+      if (unallocatedRewardRaw <= 0n) {
+        message.warning('当前没有未分配奖励');
+        return;
+      }
+      setDistributeLoading(true);
+      await distributeOnlyRaw(unallocatedRewardRaw, signer);
+      message.success('派发成功（全部未分配奖励）');
+      await refreshAll();
     } catch (e: any) {
       message.error(humanizeEthersError(e));
     } finally {
@@ -388,8 +570,14 @@ const StakingPoolPage = () => {
             <Descriptions.Item label="当前授权额度">
               {allowance ? `${allowance} TOKEN` : '0'}
             </Descriptions.Item>
-            <Descriptions.Item label="奖励池 Token 数量">
-              {rewardPoolBalance ? `${rewardPoolBalance} TOKEN` : '0'}
+            <Descriptions.Item label="质押池总代币数量">
+              {poolTotalTokenBalance ? `${poolTotalTokenBalance} TOKEN` : '0'}
+            </Descriptions.Item>
+            <Descriptions.Item label="未分配奖励（已转入未 distribute）">
+              {unallocatedRewardBalance ? `${unallocatedRewardBalance} TOKEN` : '0'}
+            </Descriptions.Item>
+            <Descriptions.Item label="已分配奖励池（rewardFund）">
+              {rewardFundBalance ? `${rewardFundBalance} TOKEN` : '0'}
             </Descriptions.Item>
           </Descriptions>
           <Button
@@ -402,7 +590,8 @@ const StakingPoolPage = () => {
               harvestLoading ||
               distributeLoading ||
               rewardPayLoading ||
-              injectLoading
+              injectLoading ||
+              stakersLoading
             }
             disabled={infoLoading || txBusy}
             onClick={handleRefresh}
@@ -412,6 +601,46 @@ const StakingPoolPage = () => {
         </Space>
 
         <Divider />
+
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Title level={5}>质押用户列表</Typography.Title>
+          <Table
+            size="small"
+            loading={stakersLoading}
+            dataSource={stakerRows}
+            pagination={{ pageSize: 8, hideOnSinglePage: true }}
+            columns={[
+              {
+                title: '地址',
+                dataIndex: 'address',
+                key: 'address',
+                render: (v: string) => (
+                  <Typography.Text code copyable>
+                    {v}
+                  </Typography.Text>
+                ),
+              },
+              { title: '质押数量', dataIndex: 'staked', key: 'staked', render: (v: string) => `${v} TOKEN` },
+              {
+                title: '待领取',
+                dataIndex: 'claimable',
+                key: 'claimable',
+                render: (v: string) => `${v} TOKEN`,
+              },
+              { title: '已领取', dataIndex: 'claimed', key: 'claimed', render: (v: string) => `${v} TOKEN` },
+              {
+                title: '累计奖励',
+                dataIndex: 'totalRewards',
+                key: 'totalRewards',
+                render: (v: string) => `${v} TOKEN`,
+              },
+            ]}
+          />
+          <Typography.Text type="secondary">
+            说明：列表通过读取合约事件日志汇总地址；“已领取”为 RewardPaid 事件累计；“待领取”为
+            earned()。
+          </Typography.Text>
+        </Space>
 
         {isPoolOwner && (
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
@@ -434,6 +663,14 @@ const StakingPoolPage = () => {
                 onClick={handleInject}
               >
                 注入到质押池
+              </Button>
+              <Button
+                type="default"
+                loading={distributeLoading}
+                disabled={infoLoading || txBusy || !rewardFundSupported || unallocatedRewardRaw <= 0n}
+                onClick={handleDistributeAllUnallocated}
+              >
+                派发全部未分配
               </Button>
             </Space>
           </Space>

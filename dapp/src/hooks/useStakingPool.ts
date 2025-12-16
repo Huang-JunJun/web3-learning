@@ -79,6 +79,15 @@ export const useStakingPool = (provider: ethers.BrowserProvider | null) => {
     [getTokenDecimals, poolReader],
   );
 
+  const loadUserEarnedRaw = useCallback(
+    async (account: string): Promise<bigint> => {
+      if (!poolReader) throw new Error('Provider not ready');
+      const v = await poolReader.earned(account);
+      return BigInt(v.toString());
+    },
+    [poolReader],
+  );
+
   const loadAllowanceRaw = useCallback(
     async (owner: string) => {
       if (!tokenReader) throw new Error('Provider not ready');
@@ -163,6 +172,30 @@ export const useStakingPool = (provider: ethers.BrowserProvider | null) => {
     return BigInt(v.toString());
   }, [tokenReader]);
 
+  const loadRewardFundRaw = useCallback(async (): Promise<bigint> => {
+    if (!poolReader) throw new Error('Provider not ready');
+    const v = await poolReader.rewardFund();
+    return BigInt(v.toString());
+  }, [poolReader]);
+
+  const tryLoadRewardFundRaw = useCallback(async (): Promise<bigint | null> => {
+    try {
+      return await loadRewardFundRaw();
+    } catch (e: any) {
+      const msg = String(e?.reason ?? e?.shortMessage ?? e?.message ?? e);
+      if (/unrecognized selector/i.test(msg) || /missing revert data/i.test(msg)) {
+        return null;
+      }
+      throw e;
+    }
+  }, [loadRewardFundRaw]);
+
+  const loadRewardFund = useCallback(async () => {
+    const decimals = await getTokenDecimals();
+    const v = await loadRewardFundRaw();
+    return ethers.formatUnits(v, decimals);
+  }, [getTokenDecimals, loadRewardFundRaw]);
+
   // Owner: 仅把奖励 token 转入池子合约（不分配）
   const injectReward = useCallback(
     async (amount: string, signer: ethers.Signer) => {
@@ -199,12 +232,22 @@ export const useStakingPool = (provider: ethers.BrowserProvider | null) => {
     [getStakingPool, getTokenDecimals],
   );
 
+  const distributeOnlyRaw = useCallback(
+    async (amountRaw: bigint, signer: ethers.Signer) => {
+      const pool = getStakingPool(signer);
+      const tx = await pool.distribute(amountRaw);
+      await tx.wait();
+    },
+    [getStakingPool],
+  );
+
   // Owner: 先把奖励 token 转账到池子合约，再调用 distribute 进行分配
   const distributeReward = useCallback(
     async (amount: string, signer: ethers.Signer) => {
       await injectReward(amount, signer);
       try {
         await distributeOnly(amount, signer);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         const msg = String(e?.reason ?? e?.shortMessage ?? e?.message ?? e);
         if (/allowance exceeded/i.test(msg)) {
@@ -224,6 +267,7 @@ export const useStakingPool = (provider: ethers.BrowserProvider | null) => {
     loadTotalStakedRaw,
     loadUserStaked,
     loadUserEarned,
+    loadUserEarnedRaw,
     loadAllowance,
     loadAllowanceRaw,
     approve,
@@ -234,9 +278,13 @@ export const useStakingPool = (provider: ethers.BrowserProvider | null) => {
     loadPoolOwner,
     loadPoolTokenBalance,
     loadPoolTokenBalanceRaw,
+    loadRewardFund,
+    loadRewardFundRaw,
+    tryLoadRewardFundRaw,
     injectReward,
     rewardTransfer,
     distributeOnly,
+    distributeOnlyRaw,
     distributeReward,
   };
 };

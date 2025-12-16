@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const unquoteOnce = (s: string) => {
   const t = s.trim();
   if (t.length >= 2) {
@@ -34,8 +35,7 @@ const extractReason = (err: any): string | null => {
 
   for (const raw of candidates) {
     const m =
-      raw.match(/execution reverted(?::\s*([^\n]+))?/i) ||
-      raw.match(/reverted(?::\s*([^\n]+))?/i);
+      raw.match(/execution reverted(?::\s*([^\n]+))?/i) || raw.match(/reverted(?::\s*([^\n]+))?/i);
     if (m && m[1]) {
       const r = normalizeReason(m[1]);
       if (r) return r;
@@ -69,7 +69,7 @@ export const humanizeEthersError = (err: unknown): string => {
     return '授权额度不足，请先授权';
   }
   if (reasonText.includes('no rewards to harvest') || reasonText.includes('no rewards')) {
-    return '当前没有可领取奖励';
+    return '当前钱包地址没有可领取奖励（请确认连接的钱包地址是否正确）';
   }
   if (reasonText === 'not owner') {
     return '只有合约 Owner 才能执行该操作';
@@ -109,6 +109,9 @@ export const humanizeEthersError = (err: unknown): string => {
   }
   if (msgLower.includes('call_exception') || msgLower.includes('execution reverted')) {
     return reason ? `交易失败：${reason}` : '交易失败（合约拒绝），请检查输入或合约状态';
+  }
+  if (msgLower.includes('unrecognized selector')) {
+    return '合约版本/ABI 不匹配（unrecognized selector）：请重新部署合约并同步前端地址与 ABI';
   }
   if (msgLower.includes('missing revert data')) {
     return '交易失败（未返回失败原因），请检查输入或合约状态';
