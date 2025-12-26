@@ -30,6 +30,7 @@ const StakingPoolPage = () => {
     rewardTransfer,
     distributeOnly,
     distributeOnlyRaw,
+    fundAndDistribute,
     distributeReward,
   } = useStakingPool(provider);
 
@@ -54,6 +55,7 @@ const StakingPoolPage = () => {
   const [injectAmount, setInjectAmount] = useState('');
   const [rewardTo, setRewardTo] = useState('');
   const [rewardPayAmount, setRewardPayAmount] = useState('');
+  const [fundAmount, setFundAmount] = useState('');
 
   const [infoLoading, setInfoLoading] = useState(false);
   const [approveLoading, setApproveLoading] = useState(false);
@@ -63,6 +65,7 @@ const StakingPoolPage = () => {
   const [distributeLoading, setDistributeLoading] = useState(false);
   const [rewardPayLoading, setRewardPayLoading] = useState(false);
   const [injectLoading, setInjectLoading] = useState(false);
+  const [fundLoading, setFundLoading] = useState(false);
 
   const [stakersLoading, setStakersLoading] = useState(false);
   const [stakerRows, setStakerRows] = useState<
@@ -83,7 +86,8 @@ const StakingPoolPage = () => {
     harvestLoading ||
     distributeLoading ||
     rewardPayLoading ||
-    injectLoading;
+    injectLoading ||
+    fundLoading;
   const isPoolOwner =
     poolOwner && address ? poolOwner.toLowerCase() === address.toLowerCase() : false;
   const isTokenOwner =
@@ -424,6 +428,32 @@ const StakingPoolPage = () => {
     }
   };
 
+  const handleFundAndDistribute = async () => {
+    try {
+      if (!provider || !address || !signer) {
+        message.warning('请先连接钱包');
+        return;
+      }
+      if (!isPoolOwner) {
+        message.warning('只有池子 Owner 才能派发奖励');
+        return;
+      }
+      if (!fundAmount) {
+        message.warning('请输入派发奖励数量');
+        return;
+      }
+      setFundLoading(true);
+      await fundAndDistribute(fundAmount, signer);
+      message.success('派发奖励成功（fundAndDistribute）');
+      setFundAmount('');
+      await refreshAll();
+    } catch (e: any) {
+      message.error(humanizeEthersError(e));
+    } finally {
+      setFundLoading(false);
+    }
+  };
+
   const handleInject = async () => {
     try {
       if (!provider || !address || !signer) {
@@ -557,29 +587,22 @@ const StakingPoolPage = () => {
 
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Descriptions bordered column={1}>
-            <Descriptions.Item label="质押池地址">{STAKING_POOL_ADDRESS}</Descriptions.Item>
-            <Descriptions.Item label="池子总质押">
-              {totalStaked ? `${totalStaked} TOKEN` : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="我的质押">
-              {userStaked ? `${userStaked} TOKEN` : '0'}
-            </Descriptions.Item>
-            <Descriptions.Item label="当前可领取奖励">
-              {earned ? `${earned} TOKEN` : '0'}
-            </Descriptions.Item>
-            <Descriptions.Item label="当前授权额度">
-              {allowance ? `${allowance} TOKEN` : '0'}
-            </Descriptions.Item>
-            <Descriptions.Item label="质押池总代币数量">
+            <Descriptions.Item label="poolTokenBalance = token.balanceOf(pool)">
               {poolTotalTokenBalance ? `${poolTotalTokenBalance} TOKEN` : '0'}
             </Descriptions.Item>
-            <Descriptions.Item label="未分配奖励（已转入未 distribute）">
-              {unallocatedRewardBalance ? `${unallocatedRewardBalance} TOKEN` : '0'}
+            <Descriptions.Item label="totalStaked">
+              {totalStaked ? `${totalStaked} TOKEN` : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="已分配奖励池（rewardFund）">
+            <Descriptions.Item label="rewardFund（已分配未领取）">
               {rewardFundBalance ? `${rewardFundBalance} TOKEN` : '0'}
             </Descriptions.Item>
+            <Descriptions.Item label="未分配奖励（仅注入未 distribute）">
+              {unallocatedRewardBalance ? `${unallocatedRewardBalance} TOKEN` : '0'}
+            </Descriptions.Item>
           </Descriptions>
+          <Typography.Text type="secondary">
+            池子 Token 总量 = 质押 + 未分配奖励 + 已分配未领取；当前可领取奖励 = 已 distribute 的奖励份额
+          </Typography.Text>
           <Button
             type="default"
             loading={
@@ -591,6 +614,7 @@ const StakingPoolPage = () => {
               distributeLoading ||
               rewardPayLoading ||
               injectLoading ||
+              fundLoading ||
               stakersLoading
             }
             disabled={infoLoading || txBusy}
@@ -601,6 +625,33 @@ const StakingPoolPage = () => {
         </Space>
 
         <Divider />
+
+        {isPoolOwner && (
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+            <Typography.Title level={5}>派发奖励（推荐：单入口）</Typography.Title>
+            <Typography.Text type="secondary">
+              调用合约 fundAndDistribute：合约内部会 transferFrom(owner→pool) 并完成 distribute 记账（需要 owner
+              先 approve 给质押池）。
+            </Typography.Text>
+            <Space orientation="horizontal" size="middle">
+              <Input
+                placeholder="输入派发奖励数量"
+                style={{ width: 240 }}
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                disabled={infoLoading || txBusy}
+              />
+              <Button
+                type="primary"
+                loading={fundLoading}
+                disabled={infoLoading || txBusy}
+                onClick={handleFundAndDistribute}
+              >
+                fundAndDistribute
+              </Button>
+            </Space>
+          </Space>
+        )}
 
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Typography.Title level={5}>质押用户列表</Typography.Title>
@@ -644,7 +695,7 @@ const StakingPoolPage = () => {
 
         {isPoolOwner && (
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-            <Typography.Title level={5}>发放奖励（注入质押池）</Typography.Title>
+            <Typography.Title level={5}>发放奖励（教学模式/高级选项）</Typography.Title>
             <Typography.Text type="secondary">
               Pool Owner 将奖励 Token 直接转入 StakingPool 合约，用于后续派发/用户领取。
             </Typography.Text>
@@ -711,7 +762,7 @@ const StakingPoolPage = () => {
 
         {isPoolOwner && (
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-            <Typography.Title level={5}>派发奖励（Owner）</Typography.Title>
+            <Typography.Title level={5}>派发奖励（教学模式/高级选项）</Typography.Title>
             <Typography.Text type="secondary">
               可选流程：先“注入到质押池”，再点击“仅派发”；或直接点击“转账并派发”（两笔交易）。
             </Typography.Text>

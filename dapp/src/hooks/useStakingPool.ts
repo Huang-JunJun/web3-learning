@@ -241,6 +241,17 @@ export const useStakingPool = (provider: ethers.BrowserProvider | null) => {
     [getStakingPool],
   );
 
+  const fundAndDistribute = useCallback(
+    async (amount: string, signer: ethers.Signer) => {
+      const decimals = await getTokenDecimals();
+      const parsed = ethers.parseUnits(amount, decimals);
+      const pool = getStakingPool(signer);
+      const tx = await pool.fundAndDistribute(parsed);
+      await tx.wait();
+    },
+    [getStakingPool, getTokenDecimals],
+  );
+
   // Owner: 先把奖励 token 转账到池子合约，再调用 distribute 进行分配
   const distributeReward = useCallback(
     async (amount: string, signer: ethers.Signer) => {
@@ -285,6 +296,7 @@ export const useStakingPool = (provider: ethers.BrowserProvider | null) => {
     rewardTransfer,
     distributeOnly,
     distributeOnlyRaw,
+    fundAndDistribute,
     distributeReward,
   };
 };

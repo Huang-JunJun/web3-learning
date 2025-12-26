@@ -58,7 +58,7 @@ describe('StakingPool', () => {
 
     // 分发奖励
     await token.connect(owner).approve(await pool.getAddress(), ethers.parseEther('800'));
-    await pool.connect(owner).distribute(ethers.parseEther('800'));
+    await pool.connect(owner).fundAndDistribute(ethers.parseEther('800'));
 
     expect(await pool.earned(await user1.getAddress())).to.equal(ethers.parseEther('500'));
     expect(await pool.earned(await user2.getAddress())).to.equal(ethers.parseEther('300'));
@@ -72,7 +72,7 @@ describe('StakingPool', () => {
 
     // 分发奖励
     await token.connect(owner).approve(await pool.getAddress(), ethers.parseEther('500'));
-    await pool.connect(owner).distribute(ethers.parseEther('500'));
+    await pool.connect(owner).fundAndDistribute(ethers.parseEther('500'));
 
     // 第一次 harvest
     await pool.connect(user1).harvest();
@@ -88,5 +88,42 @@ describe('StakingPool', () => {
       'Insufficient staked balance',
     );
     await expect(pool.connect(user1).harvest()).to.be.revertedWith('No rewards to harvest');
+  });
+
+  it('fundAndDistribute 分配正确且 harvest 会扣减 rewardFund', async () => {
+    const { owner, user1, user2, token, pool } = await loadFixture(deployStakingPoolFixture);
+
+    await token.transfer(await user1.getAddress(), ethers.parseEther('1000'));
+    await token.transfer(await user2.getAddress(), ethers.parseEther('1000'));
+
+    await token.connect(user1).approve(await pool.getAddress(), ethers.parseEther('500'));
+    await token.connect(user2).approve(await pool.getAddress(), ethers.parseEther('1000'));
+
+    await pool.connect(user1).stake(ethers.parseEther('500'));
+    await pool.connect(user2).stake(ethers.parseEther('1000'));
+
+    const rptBefore = await pool.rewardPerTokenStored();
+
+    await token.connect(owner).approve(await pool.getAddress(), ethers.parseEther('450'));
+    await pool.connect(owner).fundAndDistribute(ethers.parseEther('450'));
+
+    const rptAfter = await pool.rewardPerTokenStored();
+    expect(rptAfter).to.be.gt(rptBefore);
+
+    expect(await pool.earned(await user1.getAddress())).to.equal(ethers.parseEther('150'));
+    expect(await pool.earned(await user2.getAddress())).to.equal(ethers.parseEther('300'));
+
+    const fundBefore = await pool.rewardFund();
+    const balBefore = await token.balanceOf(await user1.getAddress());
+
+    await pool.connect(user1).harvest();
+
+    const balAfter = await token.balanceOf(await user1.getAddress());
+    expect(balAfter - balBefore).to.equal(ethers.parseEther('150'));
+
+    const fundAfter = await pool.rewardFund();
+    expect(fundBefore - fundAfter).to.equal(ethers.parseEther('150'));
+
+    expect(await pool.earned(await user2.getAddress())).to.equal(ethers.parseEther('300'));
   });
 });

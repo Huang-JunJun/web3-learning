@@ -35,6 +35,22 @@ contract StakingPool is Ownable {
     return _rewardFund;
   }
 
+  function fundAndDistribute(uint256 amount) external onlyOwner {
+    require(amount > 0, 'Reward must be greater than 0');
+    require(totalStaked > 0, 'No staked tokens');
+
+    // 1) 从 owner 拉取奖励代币到池子（需要 owner 先 approve StakingPool）
+    require(stakingToken.transferFrom(msg.sender, address(this), amount), 'Transfer failed');
+
+    // 2) 记账：增加 rewardFund，并推进 rewardPerTokenStored
+    uint256 bal = stakingToken.balanceOf(address(this));
+    require(bal >= totalStaked + _rewardFund, 'Bad pool balance');
+    _rewardFund += amount;
+    rewardPerTokenStored += (amount * 1e18) / totalStaked;
+
+    emit RewardAdded(amount);
+  }
+
   function stake(uint256 amount) external {
     _updateReward(msg.sender);
     require(amount > 0, 'Cannot stake 0');
