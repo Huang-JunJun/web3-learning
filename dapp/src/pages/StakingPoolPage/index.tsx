@@ -601,7 +601,12 @@ const StakingPoolPage = () => {
             </Descriptions.Item>
           </Descriptions>
           <Typography.Text type="secondary">
-            池子 Token 总量 = 质押 + 未分配奖励 + 已分配未领取；当前可领取奖励 = 已 distribute 的奖励份额
+            • rewardPerTokenStored = 每 1 token 累积奖励因子（放大 1e18）
+            <br />
+            • earned = balance * (rewardPerTokenStored - paid) / 1e18 + rewards
+            <br />
+            口径等式：池子总量 = 总质押 + 未分配 + 已分配未领取；当前可领取 = 已分配未领取 × 你的份额（通过
+            earned 计算）
           </Typography.Text>
           <Button
             type="default"
@@ -647,7 +652,7 @@ const StakingPoolPage = () => {
                 disabled={infoLoading || txBusy}
                 onClick={handleFundAndDistribute}
               >
-                fundAndDistribute
+                一键派发
               </Button>
             </Space>
           </Space>
@@ -724,6 +729,11 @@ const StakingPoolPage = () => {
                 派发全部未分配
               </Button>
             </Space>
+            <Typography.Text type="secondary">
+              • 注入只改变未分配，不会让 earned 变化
+              <br />
+              • distribute 才会推进 rewardPerTokenStored，使 earned 变化
+            </Typography.Text>
           </Space>
         )}
 

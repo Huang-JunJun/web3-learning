@@ -126,4 +126,40 @@ describe('StakingPool', () => {
 
     expect(await pool.earned(await user2.getAddress())).to.equal(ethers.parseEther('300'));
   });
+
+  it('分数分配不丢失（多轮分配摊平截断误差）', async () => {
+    const { owner, user1, user2, token, pool } = await loadFixture(deployStakingPoolFixture);
+
+    await token.transfer(await user1.getAddress(), ethers.parseEther('10'));
+    await token.transfer(await user2.getAddress(), ethers.parseEther('10'));
+
+    await token.connect(user1).approve(await pool.getAddress(), ethers.parseEther('1'));
+    await token.connect(user2).approve(await pool.getAddress(), ethers.parseEther('2'));
+
+    await pool.connect(user1).stake(ethers.parseEther('1'));
+    await pool.connect(user2).stake(ethers.parseEther('2'));
+
+    await token.connect(owner).approve(await pool.getAddress(), ethers.parseEther('1'));
+    await pool.connect(owner).fundAndDistribute(ethers.parseEther('1'));
+
+    const rpt = await pool.rewardPerTokenStored();
+    expect(rpt).to.be.gt(0n);
+
+    const earnedA1 = await pool.earned(await user1.getAddress());
+    const earnedB1 = await pool.earned(await user2.getAddress());
+    const sum1 = earnedA1 + earnedB1;
+    const total1 = ethers.parseEther('1');
+    expect(sum1 <= total1).to.equal(true);
+
+    await token.connect(owner).approve(await pool.getAddress(), ethers.parseEther('2'));
+    await pool.connect(owner).fundAndDistribute(ethers.parseEther('2'));
+
+    const earnedA2 = await pool.earned(await user1.getAddress());
+    const earnedB2 = await pool.earned(await user2.getAddress());
+    const sum2 = earnedA2 + earnedB2;
+    const total2 = ethers.parseEther('3');
+    const diff = total2 - sum2;
+    expect(diff >= 0n).to.equal(true);
+    expect(diff <= 5n).to.equal(true);
+  });
 });
