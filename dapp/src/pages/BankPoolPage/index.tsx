@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, Button, Descriptions, Space, Input, Typography, Divider, message } from 'antd';
+import { Card, Button, Descriptions, Space, Input, Typography, message, Row, Col } from 'antd';
 import { useWallet } from '../../hooks/useWallet';
 import { useBankPool } from '../../hooks/useBankPool';
 import { formatAmount } from '@/common/utils';
@@ -118,94 +118,146 @@ const BankPoolPage = () => {
 
   if (!address) {
     return (
-      <Card>
-        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-          <Typography.Title level={3}>Liquidity Pool</Typography.Title>
-          <Typography.Text>Connect your wallet before adding or removing liquidity.</Typography.Text>
-          <Button type="primary" onClick={connectWallet}>
+      <Card className="empty-state-card" bordered={false}>
+        <div className="empty-state-inner">
+          <Typography.Title level={2} className="page-title">
+            流动性池
+          </Typography.Title>
+          <Typography.Paragraph className="page-subtitle">
+            连接钱包后可查看池子总资产、总份额与预计可取回金额，并完成流动性存入和赎回。
+          </Typography.Paragraph>
+          <Button type="primary" size="large" onClick={connectWallet}>
             连接钱包
           </Button>
-        </Space>
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-        <Typography.Title level={3}>Liquidity Pool</Typography.Title>
+    <Space orientation="vertical" size="large" className="page-stack">
+      <Card className="hero-card" bordered={false}>
+        <div className="toolbar-row">
+          <Space orientation="vertical" size="small">
+            <Typography.Title level={2} className="page-title">
+              流动性池
+            </Typography.Title>
+            <Typography.Paragraph className="page-subtitle">
+              查看池子资产、份额结构与预估赎回结果，并执行流动性存入和赎回操作。
+            </Typography.Paragraph>
+          </Space>
+          <div className="toolbar-actions">
+            <Button
+              type="default"
+              size="large"
+              loading={infoLoading}
+              disabled={infoLoading || txBusy}
+              onClick={handleRefresh}
+            >
+              刷新信息
+            </Button>
+          </div>
+        </div>
+      </Card>
 
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Descriptions column={1} bordered>
-            <Descriptions.Item label="Total Assets">
-              {formatAmount(totalAssets, 4)} ETH
-            </Descriptions.Item>
+      <Card className="surface-card" bordered={false}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+          <Row gutter={[16, 16]} className="metric-grid">
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">总资产</Typography.Text>
+                <Typography.Text className="metric-value">{formatAmount(totalAssets, 4)} ETH</Typography.Text>
+                <Typography.Text className="metric-meta">池子当前持有的 ETH 总量</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">总份额</Typography.Text>
+                <Typography.Text className="metric-value">{formatAmount(totalShares, 4)}</Typography.Text>
+                <Typography.Text className="metric-meta">用于描述池子份额分配的总规模</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">我的份额</Typography.Text>
+                <Typography.Text className="metric-value">{formatAmount(userShares, 4)}</Typography.Text>
+                <Typography.Text className="metric-meta">当前钱包在池子中的份额占比</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">预计可取回</Typography.Text>
+                <Typography.Text className="metric-value">{formatAmount(previewAssets, 4)} ETH</Typography.Text>
+                <Typography.Text className="metric-meta">按当前份额估算的可赎回资产</Typography.Text>
+              </Card>
+            </Col>
+          </Row>
 
-            <Descriptions.Item label="Total Shares">{formatAmount(totalShares, 4)}</Descriptions.Item>
-
-            <Descriptions.Item label="Your Shares">{formatAmount(userShares, 4)}</Descriptions.Item>
-
-            <Descriptions.Item label="Withdraw Preview">
-              {formatAmount(previewAssets, 4)} ETH
-            </Descriptions.Item>
+          <Descriptions column={1} bordered className="summary-descriptions">
+            <Descriptions.Item label="总资产">{formatAmount(totalAssets, 4)} ETH</Descriptions.Item>
+            <Descriptions.Item label="总份额">{formatAmount(totalShares, 4)}</Descriptions.Item>
+            <Descriptions.Item label="我的份额">{formatAmount(userShares, 4)}</Descriptions.Item>
+            <Descriptions.Item label="预计可取回">{formatAmount(previewAssets, 4)} ETH</Descriptions.Item>
           </Descriptions>
-
-          <Button
-            type="default"
-            loading={infoLoading}
-            disabled={infoLoading || txBusy}
-            onClick={handleRefresh}
-          >
-            Refresh Pool Data
-          </Button>
         </Space>
+      </Card>
 
-        <Divider />
-
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>Deposit ETH</Typography.Title>
-          <Space orientation="horizontal" size="middle">
-            <Input
-              placeholder="Enter deposit amount, e.g. 0.1"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              style={{ width: 200 }}
-              disabled={infoLoading || txBusy}
-            />
-            <Button
-              type="primary"
-              loading={depositLoading}
-              disabled={infoLoading || txBusy}
-              onClick={handleDeposit}
-            >
-              Deposit
-            </Button>
-          </Space>
-        </Space>
-
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>Redeem Shares</Typography.Title>
-          <Space orientation="horizontal" size="middle">
-            <Input
-              placeholder="Enter shares to redeem"
-              value={withdrawShares}
-              onChange={(e) => setWithdrawShares(e.target.value)}
-              style={{ width: 240 }}
-              disabled={infoLoading || txBusy}
-            />
-            <Button
-              danger
-              type="primary"
-              loading={withdrawLoading}
-              disabled={infoLoading || txBusy}
-              onClick={handleWithdraw}
-            >
-              Redeem
-            </Button>
-          </Space>
-        </Space>
-      </Space>
-    </Card>
+      <Row gutter={[16, 16]} className="page-actions-grid">
+        <Col xs={24} lg={12}>
+          <Card className="section-card" bordered={false} title="存入">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Text className="section-note">
+                向流动性池追加 ETH，份额会根据当前池子状态自动计算。
+              </Typography.Text>
+              <div className="form-row">
+                <Input
+                  placeholder="输入存入金额，例如 0.1"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  style={{ width: 220 }}
+                  disabled={infoLoading || txBusy}
+                />
+                <Button
+                  type="primary"
+                  loading={depositLoading}
+                  disabled={infoLoading || txBusy}
+                  onClick={handleDeposit}
+                >
+                  存入
+                </Button>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card className="section-card" bordered={false} title="赎回">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Text className="section-note">
+                输入要赎回的份额数量，系统会根据当前份额价值估算可取回资产。
+              </Typography.Text>
+              <div className="form-row">
+                <Input
+                  placeholder="输入要赎回的份额数量"
+                  value={withdrawShares}
+                  onChange={(e) => setWithdrawShares(e.target.value)}
+                  style={{ width: 240 }}
+                  disabled={infoLoading || txBusy}
+                />
+                <Button
+                  danger
+                  type="primary"
+                  loading={withdrawLoading}
+                  disabled={infoLoading || txBusy}
+                  onClick={handleWithdraw}
+                >
+                  赎回
+                </Button>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+    </Space>
   );
 };
 

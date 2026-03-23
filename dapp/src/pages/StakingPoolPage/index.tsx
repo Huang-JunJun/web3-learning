@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Card, Space, Typography, Descriptions, Input, Button, Divider, message, Table } from 'antd';
+import { Card, Space, Typography, Descriptions, Input, Button, message, Table, Row, Col } from 'antd';
 import { ethers } from 'ethers';
 import { useWallet } from '@/hooks/useWallet';
 import { useStakingPool } from '@/hooks/useStakingPool';
@@ -568,80 +568,154 @@ const StakingPoolPage = () => {
 
   if (!address) {
     return (
-      <Card>
-        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-          <Typography.Title level={3}>Staking</Typography.Title>
-          <Typography.Text>Connect your wallet before staking, unstaking, or claiming rewards.</Typography.Text>
-          <Button type="primary" onClick={connectWallet}>
+      <Card className="empty-state-card" bordered={false}>
+        <div className="empty-state-inner">
+          <Typography.Title level={2} className="page-title">
+            质押
+          </Typography.Title>
+          <Typography.Paragraph className="page-subtitle">
+            请先连接钱包后再进行质押、解除质押或领取奖励。连接后你可以查看质押池余额、奖励状态与质押用户列表。
+          </Typography.Paragraph>
+          <Button type="primary" size="large" onClick={connectWallet}>
             连接钱包
           </Button>
-        </Space>
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-        <Typography.Title level={3}>Staking</Typography.Title>
+    <Space orientation="vertical" size="large" className="page-stack">
+      <Card className="hero-card" bordered={false}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+          <div className="toolbar-row">
+            <Space orientation="vertical" size="small">
+              <Typography.Title level={2} className="page-title">
+                质押
+              </Typography.Title>
+              <Typography.Paragraph className="page-subtitle">
+                统一查看质押池余额、奖励状态与质押用户明细，并管理奖励注入、派发与领取流程。
+              </Typography.Paragraph>
+            </Space>
+            <div className="toolbar-actions">
+              <Button
+                type="default"
+                size="large"
+                loading={
+                  infoLoading ||
+                  approveLoading ||
+                  stakeLoading ||
+                  unstakeLoading ||
+                  harvestLoading ||
+                  distributeLoading ||
+                  rewardPayLoading ||
+                  injectLoading ||
+                  fundLoading ||
+                  stakersLoading
+                }
+                disabled={infoLoading || txBusy}
+                onClick={handleRefresh}
+              >
+                刷新信息
+              </Button>
+            </div>
+          </div>
 
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Descriptions bordered column={1}>
-            <Descriptions.Item label="质押池总代币数量">
-              {poolTotalTokenBalance ? `${poolTotalTokenBalance} TOKEN` : '0'}
+          <Row gutter={[16, 16]} className="metric-grid">
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">质押池余额</Typography.Text>
+                <Typography.Text className="metric-value">
+                  {poolTotalTokenBalance ? `${poolTotalTokenBalance} TOKEN` : '0 TOKEN'}
+                </Typography.Text>
+                <Typography.Text className="metric-meta">
+                  包含质押本金、待分配奖励与已分配未领取奖励
+                </Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">总质押量</Typography.Text>
+                <Typography.Text className="metric-value">
+                  {totalStaked ? `${totalStaked} TOKEN` : '-'}
+                </Typography.Text>
+                <Typography.Text className="metric-meta">所有用户当前在池中的质押总额</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">已分配奖励</Typography.Text>
+                <Typography.Text className="metric-value">
+                  {rewardFundBalance ? `${rewardFundBalance} TOKEN` : '0 TOKEN'}
+                </Typography.Text>
+                <Typography.Text className="metric-meta">已完成派发但尚未被用户领取的奖励</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">待分配奖励</Typography.Text>
+                <Typography.Text className="metric-value">
+                  {unallocatedRewardBalance ? `${unallocatedRewardBalance} TOKEN` : '0 TOKEN'}
+                </Typography.Text>
+                <Typography.Text className="metric-meta">已注入池中但尚未执行奖励派发的 Token</Typography.Text>
+              </Card>
+            </Col>
+          </Row>
+
+          <Descriptions bordered column={1} className="summary-descriptions">
+            <Descriptions.Item label="质押池余额">
+              {poolTotalTokenBalance ? `${poolTotalTokenBalance} TOKEN` : '0 TOKEN'}
             </Descriptions.Item>
-            <Descriptions.Item label="池子总质押">
+            <Descriptions.Item label="总质押量">
               {totalStaked ? `${totalStaked} TOKEN` : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="rewardFund（已分配未领取）">
-              {rewardFundBalance ? `${rewardFundBalance} TOKEN` : '0'}
+            <Descriptions.Item label="已分配奖励">
+              {rewardFundBalance ? `${rewardFundBalance} TOKEN` : '0 TOKEN'}
             </Descriptions.Item>
-            <Descriptions.Item label="未分配奖励（仅注入未 distribute）">
-              {unallocatedRewardBalance ? `${unallocatedRewardBalance} TOKEN` : '0'}
+            <Descriptions.Item label="待分配奖励">
+              {unallocatedRewardBalance ? `${unallocatedRewardBalance} TOKEN` : '0 TOKEN'}
             </Descriptions.Item>
           </Descriptions>
-          <Typography.Text type="secondary">
-            Pool balance includes staked principal, pending distribution, and distributed but
-            unclaimed rewards.
-            <br />
-            Claimable rewards only increase after rewards are distributed.
-            <br />
-            池子总量 = 总质押 + 未分配 + 已分配未领取；当前可领取奖励会在派发后按质押份额更新。
+
+          <Row gutter={[16, 16]} className="metric-grid">
+            <Col xs={24} sm={8}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">我的质押</Typography.Text>
+                <Typography.Text className="metric-value">{userStaked || '0'} TOKEN</Typography.Text>
+                <Typography.Text className="metric-meta">当前钱包已质押到池中的 Token 数量</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">当前可领取奖励</Typography.Text>
+                <Typography.Text className="metric-value">{earned || '0'} TOKEN</Typography.Text>
+                <Typography.Text className="metric-meta">完成派发后可由当前钱包领取的奖励</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">已授权质押额度</Typography.Text>
+                <Typography.Text className="metric-value">{allowance || '0'} TOKEN</Typography.Text>
+                <Typography.Text className="metric-meta">当前钱包已授权给质押池的可用额度</Typography.Text>
+              </Card>
+            </Col>
+          </Row>
+
+          <Typography.Text className="section-note">
+            质押池余额由质押本金、待分配奖励和已分配未领取奖励构成；只有在完成派发后，用户的可领取奖励才会更新。
           </Typography.Text>
-          <Button
-            type="default"
-            loading={
-              infoLoading ||
-              approveLoading ||
-              stakeLoading ||
-              unstakeLoading ||
-              harvestLoading ||
-              distributeLoading ||
-              rewardPayLoading ||
-              injectLoading ||
-              fundLoading ||
-              stakersLoading
-            }
-            disabled={infoLoading || txBusy}
-            onClick={handleRefresh}
-          >
-            Refresh Staking Data
-          </Button>
         </Space>
+      </Card>
 
-        <Divider />
-
-        {isPoolOwner && (
+      {isPoolOwner && (
+        <Card className="section-card" bordered={false} title="奖励派发">
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-            <Typography.Title level={5}>Reward Distribution</Typography.Title>
-            <Typography.Text type="secondary">
-              Use the single-entry reward flow to transfer tokens from the owner wallet into the
-              pool and record distribution in one transaction. Owner approval is required before
-              execution.
+            <Typography.Text className="section-note">
+              使用单入口奖励流程，可在一笔交易中将奖励从管理员钱包转入质押池并完成派发记账。执行前需要先完成授权。
             </Typography.Text>
-            <Space orientation="horizontal" size="middle">
+            <div className="form-row">
               <Input
-                placeholder="Enter reward amount"
+                placeholder="输入派发奖励数量"
                 style={{ width: 240 }}
                 value={fundAmount}
                 onChange={(e) => setFundAmount(e.target.value)}
@@ -649,65 +723,68 @@ const StakingPoolPage = () => {
               />
               <Button
                 type="primary"
+                size="large"
                 loading={fundLoading}
                 disabled={infoLoading || txBusy}
                 onClick={handleFundAndDistribute}
               >
-                Distribute Rewards
+                派发奖励
               </Button>
-            </Space>
+            </div>
           </Space>
-        )}
+        </Card>
+      )}
 
+      <Card className="section-card" bordered={false} title="质押用户">
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>Stakers</Typography.Title>
           <Table
-            size="small"
+            className="arcfi-table"
+            size="middle"
             loading={stakersLoading}
             dataSource={stakerRows}
             pagination={{ pageSize: 8, hideOnSinglePage: true }}
             columns={[
               {
-                title: 'Address',
+                title: '地址',
                 dataIndex: 'address',
                 key: 'address',
                 render: (v: string) => (
-                  <Typography.Text code copyable>
+                  <Typography.Text code copyable className="code-address">
                     {v}
                   </Typography.Text>
                 ),
               },
-              { title: 'Staked', dataIndex: 'staked', key: 'staked', render: (v: string) => `${v} TOKEN` },
+              { title: '质押数量', dataIndex: 'staked', key: 'staked', render: (v: string) => `${v} TOKEN` },
               {
-                title: 'Claimable',
+                title: '待领取',
                 dataIndex: 'claimable',
                 key: 'claimable',
                 render: (v: string) => `${v} TOKEN`,
               },
-              { title: 'Claimed', dataIndex: 'claimed', key: 'claimed', render: (v: string) => `${v} TOKEN` },
+              { title: '已领取', dataIndex: 'claimed', key: 'claimed', render: (v: string) => `${v} TOKEN` },
               {
-                title: 'Total Rewards',
+                title: '累计奖励',
                 dataIndex: 'totalRewards',
                 key: 'totalRewards',
                 render: (v: string) => `${v} TOKEN`,
               },
             ]}
           />
-          <Typography.Text type="secondary">
-            Addresses are aggregated from staking and reward events. Claimed totals come from
-            `RewardPaid`, while Claimable reflects the current `earned()` value.
+          <Typography.Text className="section-note">
+            地址列表通过质押与奖励事件汇总得出，“已领取”来自 RewardPaid 事件累计，“待领取”为当前链上可领取奖励。
           </Typography.Text>
         </Space>
+      </Card>
 
-        {isPoolOwner && (
+      {isPoolOwner && (
+        <Card className="section-card" bordered={false} title="奖励注入">
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-            <Typography.Title level={5}>Reward Funding</Typography.Title>
-            <Typography.Text type="secondary">
-              Move reward tokens into the staking pool without updating claimable rewards yet.
+            <Typography.Text className="section-note">
+              先将奖励 Token 注入质押池，再根据需要发起统一派发。注入操作不会立即改变用户可领取奖励。
             </Typography.Text>
-            <Space orientation="horizontal" size="middle">
+            <div className="form-row">
               <Input
-                placeholder="Enter funding amount"
+                placeholder="输入注入奖励数量"
                 style={{ width: 240 }}
                 value={injectAmount}
                 onChange={(e) => setInjectAmount(e.target.value)}
@@ -715,46 +792,46 @@ const StakingPoolPage = () => {
               />
               <Button
                 type="primary"
+                size="large"
                 loading={injectLoading}
                 disabled={infoLoading || txBusy}
                 onClick={handleInject}
               >
-                Fund Pool
+                注入奖励
               </Button>
               <Button
                 type="default"
+                size="large"
                 loading={distributeLoading}
                 disabled={infoLoading || txBusy || !rewardFundSupported || unallocatedRewardRaw <= 0n}
                 onClick={handleDistributeAllUnallocated}
               >
-                Distribute Unallocated
+                派发待分配奖励
               </Button>
-            </Space>
-            <Typography.Text type="secondary">
-              • Funding only changes the unallocated reward balance.
-              <br />
-              • Distribution updates reward accounting and makes rewards claimable.
+            </div>
+            <Typography.Text className="section-note">
+              注入只会增加待分配奖励；完成派发后，奖励才会进入用户可领取状态。
             </Typography.Text>
           </Space>
-        )}
+        </Card>
+      )}
 
-        {isTokenOwner && (
+      {isTokenOwner && (
+        <Card className="section-card" bordered={false} title="直接转账发放">
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-            <Typography.Title level={5}>Direct Token Transfer</Typography.Title>
-            <Typography.Text type="secondary">
-              Send rewards directly from the token owner wallet without using staking reward
-              accounting.
+            <Typography.Text className="section-note">
+              从代币所有者钱包直接向目标地址转账奖励，不经过质押池的奖励记账逻辑。
             </Typography.Text>
-            <Space orientation="horizontal" size="middle" wrap>
+            <div className="form-row">
               <Input
-                placeholder="Recipient address (defaults to current wallet)"
+                placeholder="输入接收地址（默认当前钱包）"
                 style={{ width: 420 }}
                 value={rewardTo}
                 onChange={(e) => setRewardTo(e.target.value)}
                 disabled={infoLoading || txBusy}
               />
               <Input
-                placeholder="Reward amount"
+                placeholder="输入奖励数量"
                 style={{ width: 220 }}
                 value={rewardPayAmount}
                 onChange={(e) => setRewardPayAmount(e.target.value)}
@@ -762,26 +839,27 @@ const StakingPoolPage = () => {
               />
               <Button
                 type="primary"
+                size="large"
                 loading={rewardPayLoading}
                 disabled={infoLoading || txBusy}
                 onClick={handleRewardPay}
               >
-                Send Tokens
+                直接转账
               </Button>
-            </Space>
+            </div>
           </Space>
-        )}
+        </Card>
+      )}
 
-        {isPoolOwner && (
+      {isPoolOwner && (
+        <Card className="section-card" bordered={false} title="高级派发选项">
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-            <Typography.Title level={5}>Advanced Distribution Options</Typography.Title>
-            <Typography.Text type="secondary">
-              Optional flow: fund the pool first and distribute later, or execute transfer and
-              distribution as separate transactions.
+            <Typography.Text className="section-note">
+              可选流程：先注入再单独派发，或按照两笔交易执行“转账并派发”，适合演示奖励流转细节。
             </Typography.Text>
-            <Space orientation="horizontal" size="middle">
+            <div className="form-row">
               <Input
-                placeholder="Enter reward amount"
+                placeholder="输入派发奖励数量"
                 style={{ width: 240 }}
                 value={rewardAmount}
                 onChange={(e) => setRewardAmount(e.target.value)}
@@ -789,92 +867,117 @@ const StakingPoolPage = () => {
               />
               <Button
                 type="default"
+                size="large"
                 loading={distributeLoading}
                 disabled={infoLoading || txBusy}
                 onClick={handleDistributeOnly}
               >
-                Distribute Only
+                仅派发
               </Button>
               <Button
                 type="primary"
+                size="large"
                 loading={distributeLoading}
                 disabled={infoLoading || txBusy}
                 onClick={handleDistribute}
               >
-                Transfer and Distribute
+                转账并派发
               </Button>
+            </div>
+          </Space>
+        </Card>
+      )}
+
+      <Row gutter={[16, 16]} className="page-actions-grid">
+        <Col xs={24} lg={8}>
+          <Card className="section-card" bordered={false} title="质押">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Text className="section-note">
+                输入要质押的 Token 数量，授权不足时可直接先完成授权。
+              </Typography.Text>
+              <div className="form-row">
+                <Input
+                  placeholder="输入要质押的数量"
+                  style={{ width: 240 }}
+                  value={stakeAmount}
+                  onChange={(e) => setStakeAmount(e.target.value)}
+                  disabled={infoLoading || txBusy}
+                />
+                {needApprove ? (
+                  <Button
+                    type="primary"
+                    size="large"
+                    loading={approveLoading}
+                    disabled={infoLoading || txBusy}
+                    onClick={handleApprove}
+                  >
+                    先授权
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    size="large"
+                    loading={stakeLoading}
+                    disabled={infoLoading || txBusy}
+                    onClick={handleStake}
+                  >
+                    立即质押
+                  </Button>
+                )}
+              </div>
             </Space>
-          </Space>
-        )}
-
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>质押</Typography.Title>
-          <Space orientation="horizontal" size="middle">
-            <Input
-              placeholder="输入要质押的数量"
-              style={{ width: 240 }}
-              value={stakeAmount}
-              onChange={(e) => setStakeAmount(e.target.value)}
-              disabled={infoLoading || txBusy}
-            />
-            {needApprove ? (
-              <Button
-                type="primary"
-                loading={approveLoading}
-                disabled={infoLoading || txBusy}
-                onClick={handleApprove}
-              >
-                先授权
-              </Button>
-            ) : (
-              <Button
-                type="primary"
-                loading={stakeLoading}
-                disabled={infoLoading || txBusy}
-                onClick={handleStake}
-              >
-                质押
-              </Button>
-            )}
-          </Space>
-        </Space>
-
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>解除质押</Typography.Title>
-          <Space orientation="horizontal" size="middle">
-            <Input
-              placeholder="输入要解除的质押数量"
-              style={{ width: 240 }}
-              value={unstakeAmount}
-              onChange={(e) => setUnstakeAmount(e.target.value)}
-              disabled={infoLoading || txBusy}
-            />
-            <Button
-              danger
-              type="primary"
-              loading={unstakeLoading}
-              disabled={infoLoading || txBusy}
-              onClick={handleUnstake}
-            >
-              解除质押
-            </Button>
-          </Space>
-        </Space>
-
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>奖励</Typography.Title>
-          <Button
-            type="primary"
-            loading={harvestLoading}
-            disabled={infoLoading || txBusy}
-            onClick={handleHarvest}
-          >
-            领取奖励
-          </Button>
-        </Space>
-
-      </Space>
-    </Card>
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card className="section-card" bordered={false} title="解除质押">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Text className="section-note">
+                解除指定数量的质押 Token，操作完成后会自动刷新池子与个人状态。
+              </Typography.Text>
+              <div className="form-row">
+                <Input
+                  placeholder="输入要解除的质押数量"
+                  style={{ width: 240 }}
+                  value={unstakeAmount}
+                  onChange={(e) => setUnstakeAmount(e.target.value)}
+                  disabled={infoLoading || txBusy}
+                />
+                <Button
+                  danger
+                  type="primary"
+                  size="large"
+                  loading={unstakeLoading}
+                  disabled={infoLoading || txBusy}
+                  onClick={handleUnstake}
+                >
+                  解除质押
+                </Button>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card className="section-card" bordered={false} title="领取奖励">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Text className="section-note">
+                领取当前钱包已完成派发且可提取的奖励 Token。
+              </Typography.Text>
+              <div className="form-row">
+                <Button
+                  type="primary"
+                  size="large"
+                  loading={harvestLoading}
+                  disabled={infoLoading || txBusy}
+                  onClick={handleHarvest}
+                >
+                  领取奖励
+                </Button>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+    </Space>
   );
 };
 

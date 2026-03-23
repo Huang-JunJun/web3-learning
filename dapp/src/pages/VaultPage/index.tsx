@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, Button, Descriptions, Space, Input, Typography, Divider, message } from 'antd';
+import { Card, Button, Descriptions, Space, Input, Typography, message, Row, Col } from 'antd';
 import { useWallet } from '../../hooks/useWallet';
 import { useSimpleVault } from '../../hooks/useSimpleVault';
 import { humanizeEthersError } from '@/common/humanizeEthersError';
@@ -103,88 +103,138 @@ const VaultPage = () => {
 
   if (!address) {
     return (
-      <Card>
-        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-          <Typography.Title level={3}>Vault</Typography.Title>
-          <Typography.Text>Connect your wallet to load vault data.</Typography.Text>
-          <Button type="primary" onClick={connectWallet}>
+      <Card className="empty-state-card" bordered={false}>
+        <div className="empty-state-inner">
+          <Typography.Title level={2} className="page-title">
+            金库
+          </Typography.Title>
+          <Typography.Paragraph className="page-subtitle">
+            连接钱包后可查看金库余额与合约版本，并完成 ETH 的存入与取出。
+          </Typography.Paragraph>
+          <Button type="primary" size="large" onClick={connectWallet}>
             连接钱包
           </Button>
-        </Space>
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-        <Typography.Title level={3}>Vault</Typography.Title>
+    <Space orientation="vertical" size="large" className="page-stack">
+      <Card className="hero-card" bordered={false}>
+        <div className="toolbar-row">
+          <Space orientation="vertical" size="small">
+            <Typography.Title level={2} className="page-title">
+              金库
+            </Typography.Title>
+            <Typography.Paragraph className="page-subtitle">
+              管理金库资产、查看合约版本，并快速完成 ETH 的存入与取出。
+            </Typography.Paragraph>
+          </Space>
+          <div className="toolbar-actions">
+            <Button
+              type="default"
+              size="large"
+              loading={infoLoading}
+              disabled={infoLoading || txBusy}
+              onClick={handleLoadInfo}
+            >
+              刷新信息
+            </Button>
+          </div>
+        </div>
+      </Card>
 
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Descriptions column={1} bordered>
-            <Descriptions.Item label="Wallet Address">{address}</Descriptions.Item>
-            <Descriptions.Item label="Contract Version">{version || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Vault Balance">
-              {balance ? `${balance} ETH` : '-'}
-            </Descriptions.Item>
+      <Card className="surface-card" bordered={false}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+          <Row gutter={[16, 16]} className="metric-grid">
+            <Col xs={24} md={8}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">当前钱包地址</Typography.Text>
+                <Typography.Text className="metric-value">{`${address.slice(0, 6)}...${address.slice(-4)}`}</Typography.Text>
+                <Typography.Text className="metric-meta">当前连接钱包对应的链上地址</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">合约版本</Typography.Text>
+                <Typography.Text className="metric-value">{version || '-'}</Typography.Text>
+                <Typography.Text className="metric-meta">用于确认当前金库前端对应的合约版本</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card className="metric-card" bordered={false}>
+                <Typography.Text className="metric-label">金库余额</Typography.Text>
+                <Typography.Text className="metric-value">{balance ? `${balance} ETH` : '-'}</Typography.Text>
+                <Typography.Text className="metric-meta">当前金库合约中持有的 ETH 数量</Typography.Text>
+              </Card>
+            </Col>
+          </Row>
+
+          <Descriptions column={1} bordered className="summary-descriptions">
+            <Descriptions.Item label="当前钱包地址">{address}</Descriptions.Item>
+            <Descriptions.Item label="合约版本">{version || '-'}</Descriptions.Item>
+            <Descriptions.Item label="金库余额">{balance ? `${balance} ETH` : '-'}</Descriptions.Item>
           </Descriptions>
-          <Button
-            type="default"
-            loading={infoLoading}
-            disabled={infoLoading || txBusy}
-            onClick={handleLoadInfo}
-          >
-            Refresh Vault Data
-          </Button>
         </Space>
+      </Card>
 
-        <Divider />
-
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>Deposit ETH</Typography.Title>
-          <Space orientation="horizontal" size="middle">
-            <Input
-              placeholder="Enter deposit amount, e.g. 0.1"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              style={{ width: 200 }}
-              disabled={infoLoading || txBusy}
-            />
-            <Button
-              type="primary"
-              loading={depositLoading}
-              disabled={infoLoading || txBusy}
-              onClick={handleDeposit}
-            >
-              Deposit
-            </Button>
-          </Space>
-        </Space>
-
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Title level={5}>Withdraw ETH</Typography.Title>
-          <Space orientation="horizontal" size="middle">
-            <Input
-              placeholder="Enter withdraw amount, e.g. 0.05"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              style={{ width: 200 }}
-              disabled={infoLoading || txBusy}
-            />
-            <Button
-              danger
-              type="primary"
-              loading={withdrawLoading}
-              disabled={infoLoading || txBusy}
-              onClick={handleWithdraw}
-            >
-              Withdraw
-            </Button>
-          </Space>
-        </Space>
-
-      </Space>
-    </Card>
+      <Row gutter={[16, 16]} className="page-actions-grid">
+        <Col xs={24} lg={12}>
+          <Card className="section-card" bordered={false} title="存入">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Text className="section-note">
+                向金库合约存入 ETH，交易确认后会自动刷新最新余额。
+              </Typography.Text>
+              <div className="form-row">
+                <Input
+                  placeholder="输入存入金额，例如 0.1"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  style={{ width: 220 }}
+                  disabled={infoLoading || txBusy}
+                />
+                <Button
+                  type="primary"
+                  loading={depositLoading}
+                  disabled={infoLoading || txBusy}
+                  onClick={handleDeposit}
+                >
+                  存入
+                </Button>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card className="section-card" bordered={false} title="取出">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Text className="section-note">
+                从金库中取出指定数量的 ETH，危险操作保留红色按钮样式。
+              </Typography.Text>
+              <div className="form-row">
+                <Input
+                  placeholder="输入取出金额，例如 0.05"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  style={{ width: 220 }}
+                  disabled={infoLoading || txBusy}
+                />
+                <Button
+                  danger
+                  type="primary"
+                  loading={withdrawLoading}
+                  disabled={infoLoading || txBusy}
+                  onClick={handleWithdraw}
+                >
+                  取出
+                </Button>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+    </Space>
   );
 };
 

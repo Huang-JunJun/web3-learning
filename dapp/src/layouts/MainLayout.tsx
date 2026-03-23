@@ -5,8 +5,9 @@ const { Header, Content } = Layout;
 
 const MainLayout = () => {
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh' }} className="app-shell">
       <Header
+        className="app-header"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -16,20 +17,26 @@ const MainLayout = () => {
           fontWeight: 600,
         }}
       >
-        <span>ArcFi Dashboard</span>
+        <div className="app-brand">
+          <span className="app-brand-title">ArcFi 控制台</span>
+          <span className="app-brand-subtitle">暗色风格 DeFi 管理面板</span>
+        </div>
         <a
           href="/"
+          className="app-nav-link"
           style={{
             color: 'white',
             fontSize: 16,
           }}
         >
-          Dashboard
+          控制台首页
         </a>
       </Header>
 
-      <Content style={{ padding: 24 }}>
-        <Outlet />
+      <Content className="app-content" style={{ padding: 24 }}>
+        <div className="page-shell">
+          <Outlet />
+        </div>
       </Content>
     </Layout>
   );

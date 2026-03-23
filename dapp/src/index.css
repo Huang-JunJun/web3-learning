@@ -1,4 +1,348 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
-  background: #000;
+  color: #f5f7ff;
+  background:
+    radial-gradient(circle at top, rgba(76, 141, 255, 0.18), transparent 34%),
+    radial-gradient(circle at right top, rgba(39, 194, 129, 0.12), transparent 26%),
+    linear-gradient(180deg, #0a0f1a 0%, #070b14 42%, #060910 100%);
+  font-family:
+    'PingFang SC', 'SF Pro Display', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+#root {
+  width: 100%;
+}
+
+.app-shell {
+  background: transparent !important;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(18px);
+  background: rgba(7, 11, 20, 0.82) !important;
+  border-bottom: 1px solid rgba(132, 153, 191, 0.14);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.22);
+}
+
+.app-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-brand-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.app-brand-subtitle {
+  font-size: 12px;
+  color: rgba(226, 234, 255, 0.52);
+}
+
+.app-nav-link {
+  padding: 10px 16px;
+  border-radius: 999px;
+  color: #f5f7ff !important;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(132, 153, 191, 0.14);
+  transition: all 0.2s ease;
+}
+
+.app-nav-link:hover {
+  background: rgba(76, 141, 255, 0.16);
+  border-color: rgba(76, 141, 255, 0.3);
+}
+
+.app-content {
+  padding: 36px 24px 56px !important;
+}
+
+.page-shell {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.page-stack {
+  width: 100%;
+}
+
+.hero-card,
+.surface-card,
+.section-card,
+.metric-card,
+.empty-state-card {
+  border: 1px solid rgba(132, 153, 191, 0.14) !important;
+  border-radius: 24px !important;
+  background:
+    linear-gradient(180deg, rgba(17, 23, 37, 0.96) 0%, rgba(11, 16, 27, 0.96) 100%) !important;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.24);
+}
+
+.hero-card .ant-card-body,
+.surface-card .ant-card-body,
+.section-card .ant-card-body,
+.empty-state-card .ant-card-body {
+  padding: 28px;
+}
+
+.section-card .ant-card-head {
+  min-height: auto;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(132, 153, 191, 0.12);
+}
+
+.section-card .ant-card-head-title {
+  padding: 18px 0 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.page-title {
+  margin: 0 !important;
+  font-size: clamp(30px, 4vw, 38px) !important;
+  line-height: 1.08 !important;
+}
+
+.page-subtitle {
+  max-width: 760px;
+  margin: 0 !important;
+  color: rgba(226, 234, 255, 0.68) !important;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.section-title {
+  margin: 0 !important;
+}
+
+.section-note,
+.muted-note {
+  color: rgba(226, 234, 255, 0.62) !important;
+  line-height: 1.8;
+}
+
+.metric-grid {
+  width: 100%;
+}
+
+.metric-card .ant-card-body {
+  padding: 22px;
+}
+
+.metric-label {
+  display: block;
+  margin-bottom: 12px;
+  color: rgba(226, 234, 255, 0.62);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.metric-value {
+  display: block;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: #f8fbff;
+}
+
+.metric-meta {
+  display: block;
+  margin-top: 8px;
+  color: rgba(226, 234, 255, 0.45);
+  font-size: 12px;
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.form-row .ant-input,
+.form-row .ant-input-affix-wrapper,
+.toolbar-actions .ant-btn,
+.form-row .ant-btn {
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+.form-row .ant-input,
+.form-row .ant-input-affix-wrapper {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(132, 153, 191, 0.16);
+}
+
+.summary-descriptions .ant-descriptions-item-label,
+.summary-descriptions .ant-descriptions-item-content {
+  border-bottom-color: rgba(132, 153, 191, 0.12) !important;
+}
+
+.summary-descriptions .ant-descriptions-item-label {
+  background: rgba(255, 255, 255, 0.025) !important;
+  color: rgba(226, 234, 255, 0.78) !important;
+  font-weight: 600;
+}
+
+.summary-descriptions .ant-descriptions-item-content {
+  background: rgba(255, 255, 255, 0.015) !important;
+  color: #f5f7ff !important;
+}
+
+.wallet-card .ant-space {
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.wallet-card .ant-descriptions {
+  flex: 1;
+}
+
+.wallet-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.module-card {
+  height: 100%;
+}
+
+.module-card .ant-card-body {
+  height: 100%;
+  padding: 24px;
+}
+
+.module-card-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.arcfi-table .ant-table {
+  background: transparent !important;
+}
+
+.arcfi-table .ant-table-container {
+  overflow: hidden;
+  border: 1px solid rgba(132, 153, 191, 0.14);
+  border-radius: 18px;
+}
+
+.arcfi-table .ant-table-thead > tr > th {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #e8efff !important;
+  border-bottom-color: rgba(132, 153, 191, 0.16) !important;
+  font-weight: 700;
+}
+
+.arcfi-table .ant-table-tbody > tr > td {
+  background: transparent !important;
+  border-bottom-color: rgba(132, 153, 191, 0.1) !important;
+}
+
+.arcfi-table .ant-table-tbody > tr:hover > td {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.code-address {
+  font-size: 12px;
+}
+
+.empty-state-card .ant-card-body {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+}
+
+.empty-state-inner {
+  max-width: 560px;
+}
+
+.empty-state-inner .ant-btn {
+  min-width: 140px;
+  height: 46px;
+  border-radius: 14px;
+}
+
+.page-actions-grid {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 16px !important;
+  }
+
+  .app-content {
+    padding: 24px 16px 40px !important;
+  }
+
+  .hero-card .ant-card-body,
+  .surface-card .ant-card-body,
+  .section-card .ant-card-body,
+  .empty-state-card .ant-card-body {
+    padding: 22px;
+  }
+
+  .toolbar-row,
+  .form-row,
+  .wallet-card .ant-space {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-actions,
+  .wallet-actions {
+    width: 100%;
+  }
+
+  .toolbar-actions .ant-btn,
+  .form-row .ant-btn,
+  .empty-state-inner .ant-btn {
+    width: 100%;
+  }
+
+  .form-row .ant-input,
+  .form-row .ant-input-affix-wrapper {
+    width: 100% !important;
+  }
 }

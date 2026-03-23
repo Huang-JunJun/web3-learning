@@ -17,24 +17,26 @@ const WalletInfo = ({ address, chainId, chainNetwork, balance, onDisconnect }: W
   }
 
   return (
-    <Space size="middle" style={{ width: '100%' }}>
-      <Descriptions column={1} bordered size="small">
-        <Descriptions.Item label="地址">
+    <Space size="middle" className="wallet-card" style={{ width: '100%' }}>
+      <Descriptions column={1} bordered size="small" className="summary-descriptions">
+        <Descriptions.Item label="当前钱包">
           <Text copyable>{address}</Text>
         </Descriptions.Item>
-        <Descriptions.Item label="网络">
+        <Descriptions.Item label="当前网络">
           <Space>
             <Tag color="geekblue">{chainNetwork || '未知网络'}</Tag>
             <Text type="secondary">Chain ID: {chainId ?? '-'}</Text>
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label="余额">{balance ? `${balance} ETH` : '-'}</Descriptions.Item>
+        <Descriptions.Item label="钱包余额">{balance ? `${balance} ETH` : '-'}</Descriptions.Item>
       </Descriptions>
 
       {onDisconnect && (
-        <Button danger onClick={onDisconnect}>
-          断开连接
-        </Button>
+        <div className="wallet-actions">
+          <Button danger onClick={onDisconnect}>
+            断开连接
+          </Button>
+        </div>
       )}
     </Space>
   );
