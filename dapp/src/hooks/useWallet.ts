@@ -2,6 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ethers } from 'ethers';
 import { message } from 'antd';
 
+const getNetworkDisplayName = (network: ethers.Network) => {
+  const chainId = network.chainId.toString();
+  if (chainId === '31337') return 'Hardhat 本地网络';
+  if (chainId === '1') return 'Ethereum Mainnet';
+  if (chainId === '11155111') return 'Sepolia';
+  return network.name === 'unknown' ? `未知网络 (${chainId})` : network.name;
+};
+
 export const useWallet = () => {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [address, setAddress] = useState('');
@@ -40,7 +48,7 @@ export const useWallet = () => {
 
       const network = await _provider.getNetwork();
       setChainId(network.chainId.toString());
-      setChainNetwork(network.name);
+      setChainNetwork(getNetworkDisplayName(network));
 
       const bal = await _provider.getBalance(addr);
       setBalance(ethers.formatEther(bal));
@@ -75,7 +83,7 @@ export const useWallet = () => {
         setBalance(ethers.formatEther(bal));
         const network = await p.getNetwork();
         setChainId(network.chainId.toString());
-        setChainNetwork(network.name);
+        setChainNetwork(getNetworkDisplayName(network));
         const s = await p.getSigner();
         setSigner(s);
       } catch {

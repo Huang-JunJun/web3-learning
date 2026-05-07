@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Card, Space, Typography, Descriptions, Input, Button, message, Table, Row, Col } from 'antd';
+import { Card, Space, Typography, Input, Button, message, Table, Row, Col } from 'antd';
 import { ethers } from 'ethers';
 import { useWallet } from '@/hooks/useWallet';
 import { useStakingPool } from '@/hooks/useStakingPool';
@@ -568,19 +568,123 @@ const StakingPoolPage = () => {
 
   if (!address) {
     return (
-      <Card className="empty-state-card" bordered={false}>
-        <div className="empty-state-inner">
-          <Typography.Title level={2} className="page-title">
-            质押
-          </Typography.Title>
-          <Typography.Paragraph className="page-subtitle">
-            请先连接钱包后再进行质押、解除质押或领取奖励。连接后你可以查看质押池余额、奖励状态与质押用户列表。
-          </Typography.Paragraph>
-          <Button type="primary" size="large" onClick={connectWallet}>
-            连接钱包
-          </Button>
-        </div>
-      </Card>
+      <Space orientation="vertical" size="large" className="page-stack">
+        <Card className="hero-card" bordered={false}>
+          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+            <div className="toolbar-row">
+              <Space orientation="vertical" size="small">
+                <Typography.Title level={2} className="page-title">
+                  质押
+                </Typography.Title>
+                <Typography.Paragraph className="page-subtitle">
+                  请先连接钱包后再进行质押、解除质押或领取奖励。连接后你可以查看质押池余额、奖励状态与质押用户列表。
+                </Typography.Paragraph>
+              </Space>
+              <div className="toolbar-actions">
+                <Button type="primary" size="large" onClick={connectWallet}>
+                  连接钱包
+                </Button>
+              </div>
+            </div>
+
+            <Row gutter={[16, 16]} className="metric-grid">
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="metric-card" bordered={false}>
+                  <Typography.Text className="metric-label">质押池余额</Typography.Text>
+                  <Typography.Text className="metric-value">-</Typography.Text>
+                  <Typography.Text className="metric-meta">连接钱包后读取池子总代币余额</Typography.Text>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="metric-card" bordered={false}>
+                  <Typography.Text className="metric-label">总质押量</Typography.Text>
+                  <Typography.Text className="metric-value">-</Typography.Text>
+                  <Typography.Text className="metric-meta">连接钱包后读取全池质押总量</Typography.Text>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="metric-card" bordered={false}>
+                  <Typography.Text className="metric-label">已分配奖励</Typography.Text>
+                  <Typography.Text className="metric-value">-</Typography.Text>
+                  <Typography.Text className="metric-meta">已派发但尚未领取的奖励</Typography.Text>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="metric-card" bordered={false}>
+                  <Typography.Text className="metric-label">待分配奖励</Typography.Text>
+                  <Typography.Text className="metric-value">-</Typography.Text>
+                  <Typography.Text className="metric-meta">已注入但尚未派发的奖励</Typography.Text>
+                </Card>
+              </Col>
+            </Row>
+          </Space>
+        </Card>
+
+        <Card className="section-card" bordered={false} title="奖励派发">
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+            <Typography.Text className="section-note">连接钱包后可执行奖励派发与注入操作。</Typography.Text>
+            <div className="form-row">
+              <Input placeholder="输入派发奖励数量" style={{ width: 240 }} disabled />
+              <Button type="primary" size="large" disabled>
+                派发奖励
+              </Button>
+            </div>
+          </Space>
+        </Card>
+
+        <Card className="section-card" bordered={false} title="质押操作">
+          <Row gutter={[16, 16]} className="page-actions-grid">
+            <Col xs={24} lg={8}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                <Typography.Title level={5} className="section-title">
+                  质押
+                </Typography.Title>
+                <Input placeholder="输入要质押的数量" style={{ width: 240 }} disabled />
+                <Button type="primary" size="large" disabled>
+                  立即质押
+                </Button>
+              </Space>
+            </Col>
+            <Col xs={24} lg={8}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                <Typography.Title level={5} className="section-title">
+                  解除质押
+                </Typography.Title>
+                <Input placeholder="输入要解除的质押数量" style={{ width: 240 }} disabled />
+                <Button danger type="primary" size="large" disabled>
+                  解除质押
+                </Button>
+              </Space>
+            </Col>
+            <Col xs={24} lg={8}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                <Typography.Title level={5} className="section-title">
+                  领取奖励
+                </Typography.Title>
+                <Button type="primary" size="large" disabled>
+                  领取奖励
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
+
+        <Card className="section-card" bordered={false} title="质押用户表格">
+          <Table
+            className="arcfi-table"
+            size="middle"
+            dataSource={[]}
+            pagination={false}
+            columns={[
+              { title: '地址', dataIndex: 'address', key: 'address' },
+              { title: '质押数量', dataIndex: 'staked', key: 'staked' },
+              { title: '待领取', dataIndex: 'claimable', key: 'claimable' },
+              { title: '已领取', dataIndex: 'claimed', key: 'claimed' },
+              { title: '累计奖励', dataIndex: 'totalRewards', key: 'totalRewards' },
+            ]}
+          />
+        </Card>
+      </Space>
     );
   }
 
@@ -662,49 +766,36 @@ const StakingPoolPage = () => {
             </Col>
           </Row>
 
-          <Descriptions bordered column={1} className="summary-descriptions">
-            <Descriptions.Item label="质押池余额">
-              {poolTotalTokenBalance ? `${poolTotalTokenBalance} TOKEN` : '0 TOKEN'}
-            </Descriptions.Item>
-            <Descriptions.Item label="总质押量">
-              {totalStaked ? `${totalStaked} TOKEN` : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="已分配奖励">
-              {rewardFundBalance ? `${rewardFundBalance} TOKEN` : '0 TOKEN'}
-            </Descriptions.Item>
-            <Descriptions.Item label="待分配奖励">
-              {unallocatedRewardBalance ? `${unallocatedRewardBalance} TOKEN` : '0 TOKEN'}
-            </Descriptions.Item>
-          </Descriptions>
-
-          <Row gutter={[16, 16]} className="metric-grid">
-            <Col xs={24} sm={8}>
-              <Card className="metric-card" bordered={false}>
-                <Typography.Text className="metric-label">我的质押</Typography.Text>
-                <Typography.Text className="metric-value">{userStaked || '0'} TOKEN</Typography.Text>
-                <Typography.Text className="metric-meta">当前钱包已质押到池中的 Token 数量</Typography.Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={8}>
-              <Card className="metric-card" bordered={false}>
-                <Typography.Text className="metric-label">当前可领取奖励</Typography.Text>
-                <Typography.Text className="metric-value">{earned || '0'} TOKEN</Typography.Text>
-                <Typography.Text className="metric-meta">完成派发后可由当前钱包领取的奖励</Typography.Text>
-              </Card>
-            </Col>
-            <Col xs={24} sm={8}>
-              <Card className="metric-card" bordered={false}>
-                <Typography.Text className="metric-label">已授权质押额度</Typography.Text>
-                <Typography.Text className="metric-value">{allowance || '0'} TOKEN</Typography.Text>
-                <Typography.Text className="metric-meta">当前钱包已授权给质押池的可用额度</Typography.Text>
-              </Card>
-            </Col>
-          </Row>
-
           <Typography.Text className="section-note">
             质押池余额由质押本金、待分配奖励和已分配未领取奖励构成；只有在完成派发后，用户的可领取奖励才会更新。
           </Typography.Text>
         </Space>
+      </Card>
+
+      <Card className="section-card" bordered={false} title="我的质押状态">
+        <Row gutter={[16, 16]} className="metric-grid">
+          <Col xs={24} sm={8}>
+            <Card className="metric-card" bordered={false}>
+              <Typography.Text className="metric-label">我的质押</Typography.Text>
+              <Typography.Text className="metric-value">{userStaked || '0'} TOKEN</Typography.Text>
+              <Typography.Text className="metric-meta">当前钱包已质押到池中的 Token 数量</Typography.Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card className="metric-card" bordered={false}>
+              <Typography.Text className="metric-label">当前可领取奖励</Typography.Text>
+              <Typography.Text className="metric-value">{earned || '0'} TOKEN</Typography.Text>
+              <Typography.Text className="metric-meta">完成派发后可由当前钱包领取的奖励</Typography.Text>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card className="metric-card" bordered={false}>
+              <Typography.Text className="metric-label">已授权质押额度</Typography.Text>
+              <Typography.Text className="metric-value">{allowance || '0'} TOKEN</Typography.Text>
+              <Typography.Text className="metric-meta">当前钱包已授权给质押池的可用额度</Typography.Text>
+            </Card>
+          </Col>
+        </Row>
       </Card>
 
       {isPoolOwner && (
@@ -735,7 +826,7 @@ const StakingPoolPage = () => {
         </Card>
       )}
 
-      <Card className="section-card" bordered={false} title="质押用户">
+      <Card className="section-card" bordered={false} title="质押用户表格">
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Table
             className="arcfi-table"
@@ -888,10 +979,13 @@ const StakingPoolPage = () => {
         </Card>
       )}
 
-      <Row gutter={[16, 16]} className="page-actions-grid">
-        <Col xs={24} lg={8}>
-          <Card className="section-card" bordered={false} title="质押">
+      <Card className="section-card" bordered={false} title="质押操作">
+        <Row gutter={[16, 16]} className="page-actions-grid">
+          <Col xs={24} lg={8}>
             <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Title level={5} className="section-title">
+                质押
+              </Typography.Title>
               <Typography.Text className="section-note">
                 输入要质押的 Token 数量，授权不足时可直接先完成授权。
               </Typography.Text>
@@ -926,11 +1020,12 @@ const StakingPoolPage = () => {
                 )}
               </div>
             </Space>
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card className="section-card" bordered={false} title="解除质押">
+          </Col>
+          <Col xs={24} lg={8}>
             <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Title level={5} className="section-title">
+                解除质押
+              </Typography.Title>
               <Typography.Text className="section-note">
                 解除指定数量的质押 Token，操作完成后会自动刷新池子与个人状态。
               </Typography.Text>
@@ -954,11 +1049,12 @@ const StakingPoolPage = () => {
                 </Button>
               </div>
             </Space>
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card className="section-card" bordered={false} title="领取奖励">
+          </Col>
+          <Col xs={24} lg={8}>
             <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <Typography.Title level={5} className="section-title">
+                领取奖励
+              </Typography.Title>
               <Typography.Text className="section-note">
                 领取当前钱包已完成派发且可提取的奖励 Token。
               </Typography.Text>
@@ -974,9 +1070,9 @@ const StakingPoolPage = () => {
                 </Button>
               </div>
             </Space>
-          </Card>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
+      </Card>
     </Space>
   );
 };

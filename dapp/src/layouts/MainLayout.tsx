@@ -1,9 +1,12 @@
-import { Layout } from 'antd';
+import { Layout, Space, Switch, Typography } from 'antd';
 import { Outlet } from 'react-router-dom';
+import { useArcFiTheme } from '@/common/themeMode';
 
 const { Header, Content } = Layout;
 
 const MainLayout = () => {
+  const { isDark, toggleMode } = useArcFiTheme();
+
   return (
     <Layout style={{ minHeight: '100vh' }} className="app-shell">
       <Header
@@ -21,18 +24,23 @@ const MainLayout = () => {
       >
         <div className="app-brand">
           <span className="app-brand-title">ArcFi 控制台</span>
-          <span className="app-brand-subtitle">暗色风格 DeFi 管理面板</span>
         </div>
-        <a
-          href="/"
-          className="app-nav-link"
-          style={{
-            color: 'white',
-            fontSize: 16,
-          }}
-        >
-          控制台首页
-        </a>
+        <Space size="middle" className="app-header-actions">
+          <Space size="small" className="theme-toggle">
+            <Typography.Text className="theme-toggle-label">
+              {isDark ? '深色' : '浅色'}
+            </Typography.Text>
+            <Switch
+              checked={isDark}
+              checkedChildren="深"
+              unCheckedChildren="浅"
+              onChange={toggleMode}
+            />
+          </Space>
+          <a href="/" className="app-nav-link">
+            控制台首页
+          </a>
+        </Space>
       </Header>
 
       <Content className="app-content" style={{ padding: 24 }}>
