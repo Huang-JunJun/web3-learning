@@ -9,6 +9,7 @@ import {
   useDisconnect,
   useReadContract,
   useWriteContract,
+  useWaitForTransactionReceipt,
 } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import tokenABI from '@/abis/MyTokenV2.json';
@@ -58,7 +59,7 @@ const WagmiDemoPage = () => {
   const fallbackChainId = useChainId();
   const { address, chain, chainId, isConnected, status } = useConnection();
   const connectors = useConnectors();
-  const { mutate: connect, isPending, error: connectError } = useConnect();
+  const { mutate: connect, isPending: connectPending, error: connectError } = useConnect();
   const { mutate: disconnect } = useDisconnect();
   const [manualChainId, setManualChainId] = useState<number>();
   const [manualBalance, setManualBalance] = useState<string>();
@@ -96,7 +97,16 @@ const WagmiDemoPage = () => {
       enabled: Boolean(address),
     },
   });
-  const { writeContract, isPending, error } = useWriteContract();
+  const {
+    writeContract,
+    data: approveHash,
+    isPending: approvePending,
+    error: approveError,
+  } = useWriteContract();
+  const { isLoading: approveConfirming, isSuccess: approveSuccess } = useWaitForTransactionReceipt({
+    hash: approveHash,
+  });
+
   const handleApprove = () => {
     writeContract({
       address: MYTOKENV2_ADDRESS as `0x${string}`,
@@ -265,7 +275,7 @@ const WagmiDemoPage = () => {
                 key={connector.uid}
                 type="primary"
                 size="large"
-                loading={isPending}
+                loading={connectPending}
                 disabled={isConnected}
                 onClick={() => connect({ connector })}
               >
@@ -289,6 +299,54 @@ const WagmiDemoPage = () => {
           {balanceError && !manualBalance && (
             <Text type="danger">{formatErrorMessage(balanceError)}</Text>
           )}
+        </Space>
+      </Card>
+
+      <Card className="section-card" variant="borderless" title="合约写入示例">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Paragraph className="page-subtitle" style={{ marginBottom: 0 }}>
+            使用 wagmi 的 useWriteContract 调用 MyTokenV2.approve，授权质押池可使用当前钱包的 1000
+            MTK2。
+          </Paragraph>
+
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <Card className="metric-card" variant="borderless">
+                <Text className="metric-label">Token 合约地址</Text>
+                <Text className="metric-value" style={{ wordBreak: 'break-all' }}>
+                  {MYTOKENV2_ADDRESS}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card className="metric-card" variant="borderless">
+                <Text className="metric-label">授权对象（质押池）</Text>
+                <Text className="metric-value" style={{ wordBreak: 'break-all' }}>
+                  {STAKING_POOL_ADDRESS}
+                </Text>
+              </Card>
+            </Col>
+          </Row>
+
+          <div className="form-row">
+            <Button
+              type="primary"
+              size="large"
+              disabled={!isConnected || approvePending || approveConfirming}
+              loading={approvePending || approveConfirming}
+              onClick={handleApprove}
+            >
+              授权 1000 MTK2
+            </Button>
+          </div>
+
+          {approveHash && (
+            <Text className="metric-meta" style={{ wordBreak: 'break-all' }}>
+              交易哈希：{approveHash}
+            </Text>
+          )}
+          {approveSuccess && <Text type="success">授权交易已确认</Text>}
+          {approveError && <Text type="danger">授权失败：{approveError.message}</Text>}
         </Space>
       </Card>
     </Space>
