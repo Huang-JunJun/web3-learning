@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Col, Row, Space, Typography } from 'antd';
+import { Button, Card, Col, Input, Row, Space, Typography, message } from 'antd';
 import {
   useBalance,
   useChainId,
@@ -63,6 +63,7 @@ const WagmiDemoPage = () => {
   const { mutate: disconnect } = useDisconnect();
   const [manualChainId, setManualChainId] = useState<number>();
   const [manualBalance, setManualBalance] = useState<string>();
+  const [approveAmount, setApproveAmount] = useState('1000');
   const [refreshing, setRefreshing] = useState(false);
   const currentChainId = manualChainId ?? chainId ?? fallbackChainId;
   const currentChainName = getChainName(
@@ -82,6 +83,21 @@ const WagmiDemoPage = () => {
     chainId: balanceChainId,
     query: {
       enabled: Boolean(balanceChainId),
+    },
+  });
+  const {
+    data: allowance,
+    isLoading: allowanceLoading,
+    error: allowanceError,
+    refetch: refetchAllowance,
+  } = useReadContract({
+    address: MYTOKENV2_ADDRESS as `0x${string}`,
+    abi: tokenABI.abi,
+    functionName: 'allowance',
+    args: address ? [address as `0x${string}`, STAKING_POOL_ADDRESS as `0x${string}`] : undefined,
+    chainId: balanceChainId,
+    query: {
+      enabled: Boolean(address && balanceChainId),
     },
   });
   const {
@@ -108,11 +124,24 @@ const WagmiDemoPage = () => {
   });
 
   const handleApprove = () => {
+    if (!approveAmount) {
+      message.warning('请输入授权数量');
+      return;
+    }
+
+    let parsedAmount: bigint;
+    try {
+      parsedAmount = parseUnits(approveAmount, 18);
+    } catch {
+      message.warning('请输入合法的授权数量');
+      return;
+    }
+
     writeContract({
       address: MYTOKENV2_ADDRESS as `0x${string}`,
       abi: tokenABI.abi,
       functionName: 'approve',
-      args: [STAKING_POOL_ADDRESS, parseUnits('1000', 18)],
+      args: [STAKING_POOL_ADDRESS, parsedAmount],
     });
   };
   useEffect(() => {
@@ -120,6 +149,12 @@ const WagmiDemoPage = () => {
       setManualChainId(undefined);
     }
   }, [chainId]);
+
+  useEffect(() => {
+    if (approveSuccess) {
+      void refetchAllowance();
+    }
+  }, [approveSuccess, refetchAllowance]);
 
   useEffect(() => {
     setManualBalance(undefined);
@@ -175,6 +210,7 @@ const WagmiDemoPage = () => {
         await refetchBalance();
       }
       await refetchTotalSupply?.();
+      await refetchAllowance?.();
     } finally {
       setRefreshing(false);
     }
@@ -305,12 +341,12 @@ const WagmiDemoPage = () => {
       <Card className="section-card" variant="borderless" title="合约写入示例">
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Paragraph className="page-subtitle" style={{ marginBottom: 0 }}>
-            使用 wagmi 的 useWriteContract 调用 MyTokenV2.approve，授权质押池可使用当前钱包的 1000
-            MTK2。
+            使用 wagmi 的 useWriteContract 调用 MyTokenV2.approve，自定义授权质押池可使用当前钱包的
+            MTK2 数量。
           </Paragraph>
 
           <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}>
+            <Col xs={24} md={8}>
               <Card className="metric-card" variant="borderless">
                 <Text className="metric-label">Token 合约地址</Text>
                 <Text className="metric-value" style={{ wordBreak: 'break-all' }}>
@@ -318,7 +354,7 @@ const WagmiDemoPage = () => {
                 </Text>
               </Card>
             </Col>
-            <Col xs={24} md={12}>
+            <Col xs={24} md={8}>
               <Card className="metric-card" variant="borderless">
                 <Text className="metric-label">授权对象（质押池）</Text>
                 <Text className="metric-value" style={{ wordBreak: 'break-all' }}>
@@ -326,9 +362,32 @@ const WagmiDemoPage = () => {
                 </Text>
               </Card>
             </Col>
+            <Col xs={24} md={8}>
+              <Card className="metric-card" variant="borderless">
+                <Text className="metric-label">当前授权额度</Text>
+                <Text className="metric-value">
+                  {allowanceLoading
+                    ? '读取中'
+                    : typeof allowance === 'bigint'
+                      ? `${Number(formatUnits(allowance, 18)).toFixed(4)} MTK2`
+                      : '-'}
+                </Text>
+                <Text className="metric-meta">当前钱包授权给质押池的 MTK2 数量</Text>
+                {allowanceError && (
+                  <Text type="danger">Allowance 读取失败：{allowanceError.message}</Text>
+                )}
+              </Card>
+            </Col>
           </Row>
 
           <div className="form-row">
+            <Input
+              style={{ width: 220 }}
+              value={approveAmount}
+              placeholder="输入授权数量"
+              disabled={!isConnected || approvePending || approveConfirming}
+              onChange={(e) => setApproveAmount(e.target.value)}
+            />
             <Button
               type="primary"
               size="large"
@@ -336,7 +395,7 @@ const WagmiDemoPage = () => {
               loading={approvePending || approveConfirming}
               onClick={handleApprove}
             >
-              授权 1000 MTK2
+              发起授权
             </Button>
           </div>
 
